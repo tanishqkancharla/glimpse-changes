@@ -696,13 +696,13 @@ function renderAndWrite(markdown: string, sourceLabel: string) {
 async function main() {
   const args = process.argv.slice(2);
 
-  // Child mode: read markdown from temp file, open Glimpse, and stay alive.
+  // Child mode: read pre-rendered HTML and open Glimpse.
   if (args[0] === "--child" && args[1]) {
-    const mdPath = args[1];
-    const markdown = readFileSync(mdPath, "utf8");
-    const { documentHtml, title, outPath, sessionFile } = renderAndWrite(markdown, "detached");
-    console.log(JSON.stringify({ htmlPath: outPath, sessionFile, title, opened: true }));
-    await openWithGlimpse(documentHtml, title, sessionFile);
+    const metaPath = args[1];
+    const meta = JSON.parse(readFileSync(metaPath, "utf8"));
+    const documentHtml = readFileSync(meta.htmlPath, "utf8");
+    console.log(JSON.stringify({ htmlPath: meta.htmlPath, sessionFile: meta.sessionFile, title: meta.title, opened: true }));
+    await openWithGlimpse(documentHtml, meta.title, meta.sessionFile);
     return;
   }
 
@@ -718,11 +718,19 @@ async function main() {
     process.exit(1);
   }
 
-  // Write markdown to a temp file and spawn a detached child to open Glimpse.
-  const mdTmp = join(tmpdir(), `glimpse-md-${randomBytes(6).toString("hex")}.md`);
-  writeFileSync(mdTmp, markdown, "utf8");
+  if (!markdown.trim()) {
+    console.error("No markdown content provided.");
+    process.exit(1);
+  }
 
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--child", mdTmp], {
+  // Render and validate before detaching — any errors (bad diffs, etc.) surface here.
+  const { documentHtml, title, outPath, sessionFile } = renderAndWrite(markdown, "detached");
+
+  // Write metadata to a temp file and spawn a detached child to open Glimpse.
+  const metaTmp = join(tmpdir(), `glimpse-meta-${randomBytes(6).toString("hex")}.json`);
+  writeFileSync(metaTmp, JSON.stringify({ htmlPath: outPath, sessionFile, title }), "utf8");
+
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--child", metaTmp], {
     detached: true,
     stdio: "ignore",
   });

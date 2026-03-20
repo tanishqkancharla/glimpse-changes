@@ -625,11 +625,11 @@ function renderAndWrite(markdown, sourceLabel) {
 async function main() {
   const args = process.argv.slice(2);
   if (args[0] === "--child" && args[1]) {
-    const mdPath = args[1];
-    const markdown2 = readFileSync(mdPath, "utf8");
-    const { documentHtml, title, outPath, sessionFile } = renderAndWrite(markdown2, "detached");
-    console.log(JSON.stringify({ htmlPath: outPath, sessionFile, title, opened: true }));
-    await openWithGlimpse(documentHtml, title, sessionFile);
+    const metaPath = args[1];
+    const meta = JSON.parse(readFileSync(metaPath, "utf8"));
+    const documentHtml2 = readFileSync(meta.htmlPath, "utf8");
+    console.log(JSON.stringify({ htmlPath: meta.htmlPath, sessionFile: meta.sessionFile, title: meta.title, opened: true }));
+    await openWithGlimpse(documentHtml2, meta.title, meta.sessionFile);
     return;
   }
   const inlineMarkdown = parseInput(args);
@@ -642,9 +642,14 @@ async function main() {
     printUsage();
     process.exit(1);
   }
-  const mdTmp = join(tmpdir(), `glimpse-md-${randomBytes(6).toString("hex")}.md`);
-  writeFileSync(mdTmp, markdown, "utf8");
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--child", mdTmp], {
+  if (!markdown.trim()) {
+    console.error("No markdown content provided.");
+    process.exit(1);
+  }
+  const { documentHtml, title, outPath, sessionFile } = renderAndWrite(markdown, "detached");
+  const metaTmp = join(tmpdir(), `glimpse-meta-${randomBytes(6).toString("hex")}.json`);
+  writeFileSync(metaTmp, JSON.stringify({ htmlPath: outPath, sessionFile, title }), "utf8");
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--child", metaTmp], {
     detached: true,
     stdio: "ignore"
   });
