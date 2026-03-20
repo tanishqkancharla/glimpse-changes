@@ -14,8 +14,7 @@ A CLI tool that renders Markdown with inline diffs into a native [Glimpse](https
 ## Installation
 
 ```bash
-git clone https://github.com/tanishqkancharla/glimpse-changes.git
-cp -r glimpse-changes/skills/glimpse-changes ~/.agents/skills/glimpse-changes
+npx skills add tanishqkancharla/glimpse-changes
 ```
 
 ## Usage
