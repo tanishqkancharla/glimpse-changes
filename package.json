@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "glimpse-changes": "./bin/glimpse-changes"
+    "glimpse-changes": "./bin/glimpse-changes.js"
   },
   "dependencies": {
     "glimpseui": "^0.5.1"
