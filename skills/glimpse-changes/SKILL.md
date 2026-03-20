@@ -53,6 +53,8 @@ When using the renderer from an agent session:
 - Diff blocks are capped to about `60%` of the viewport and scroll inside the page when they exceed that size.
 - Prefer command diffs (`!\`git diff ...\``) over pasting raw diff content into fenced blocks.
 - Command diffs execute at render time and always reflect the current state of the working tree.
+- Command diffs **must** start with `git diff`; any other command will be rejected.
+- Command diff output **must** contain valid unified diff hunks (with `diff --git` headers or `@@ ... @@` hunk headers); otherwise the renderer will throw an error.
 - Fenced `diff` blocks with literal patch content are still supported as a fallback.
 
 ## Rules

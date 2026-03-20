@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @bun
 
 // scripts/render-md.ts
 import { execSync } from "child_process";
@@ -157,11 +158,27 @@ function executeCommand(command) {
 ${error.message}`);
   }
 }
-function renderCommandDiff(command) {
-  const output = executeCommand(command);
-  if (!output.trim()) {
-    return `<div class="code-shell"><div class="code-label">$ ${escapeHtml(command)}</div><pre class="code-block"><code>(no output)</code></pre></div>`;
+function validateDiffOutput(output, command) {
+  const lines = output.trim().split(`
+`);
+  const hasDiffHeader = lines.some((l) => l.startsWith("diff --git "));
+  const hasHunkHeader = lines.some((l) => isValidUnifiedHunkHeader(l));
+  if (!hasDiffHeader && !hasHunkHeader) {
+    throw new Error(`Command did not produce a valid unified diff: ${command}
+Output:
+${output.slice(0, 500)}`);
   }
+}
+function renderCommandDiff(command) {
+  const trimmedCommand = command.trim();
+  if (!trimmedCommand.startsWith("git diff")) {
+    throw new Error(`Command diffs must start with "git diff", got: ${trimmedCommand}`);
+  }
+  const output = executeCommand(trimmedCommand);
+  if (!output.trim()) {
+    return `<div class="code-shell"><div class="code-label">$ ${escapeHtml(trimmedCommand)}</div><pre class="code-block"><code>(no output)</code></pre></div>`;
+  }
+  validateDiffOutput(output, trimmedCommand);
   return renderDiffBlock(output);
 }
 function renderCodeBlock(code, language) {
