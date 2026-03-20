@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "glimpse-changes": "./scripts/render-md.ts"
+    "glimpse-changes": "./bin/glimpse-changes"
   },
   "dependencies": {
     "glimpseui": "^0.5.1"
