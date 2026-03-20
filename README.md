@@ -14,31 +14,8 @@ A CLI tool that renders Markdown with inline diffs into a native [Glimpse](https
 ## Installation
 
 ```bash
-# With npm
-npm install -g glimpse-changes
-
-# With bun
-bun add -g glimpse-changes
-
-# Or run directly with npx
-npx glimpse-changes "# My Report"
-```
-
-### As a pi skill
-
-Copy the `skills/glimpse-changes` directory into your pi skills folder:
-
-```bash
-cp -r skills/glimpse-changes ~/.agents/skills/glimpse-changes
-```
-
-### From source
-
-```bash
 git clone https://github.com/tanishqkancharla/glimpse-changes.git
-cd glimpse-changes
-bun install
-bun run build
+cp -r glimpse-changes/skills/glimpse-changes ~/.agents/skills/glimpse-changes
 ```
 
 ## Usage
