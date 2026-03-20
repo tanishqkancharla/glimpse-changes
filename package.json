@@ -3,7 +3,15 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "glimpse-changes": "./bin/glimpse-changes.js"
+    "glimpse-changes": "bin/glimpse-changes.js"
+  },
+  "files": [
+    "bin",
+    "assets",
+    "skills"
+  ],
+  "scripts": {
+    "build": "bun build scripts/render-md.ts --target=node --outfile=bin/glimpse-changes.js --external glimpseui && sed -i '' '1s|.*|#!/usr/bin/env node|' bin/glimpse-changes.js"
   },
   "dependencies": {
     "glimpseui": "^0.5.1"

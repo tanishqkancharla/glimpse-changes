@@ -1,0 +1,15 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "glimpse-changes",
+      "dependencies": {
+        "glimpseui": "^0.5.1",
+      },
+    },
+  },
+  "packages": {
+    "glimpseui": ["glimpseui@0.5.1", "", { "os": [ "linux", "win32", "darwin", ], "bin": { "glimpseui": "bin/glimpse.mjs" } }, "sha512-1tfkWJbSkgYp3XoedWa1Rk9ZH5GxDn5ITT7inUOBw1m7vRuX4au4pLE8Xcokviie2cHUDbOe6Xv1kiyz5lJOFA=="],
+  }
+}
