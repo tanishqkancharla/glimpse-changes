@@ -2,7 +2,7 @@
 // @bun
 
 // scripts/render-md.ts
-import { execSync } from "child_process";
+import { execSync, spawn } from "child_process";
 import { randomBytes } from "crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
@@ -33,7 +33,7 @@ function parseInput(argv) {
     printUsage();
     process.exit(0);
   }
-  if (argv.length > 1) {
+  if (argv.length > 1 && argv[0] !== "--child") {
     throw new Error("Expected a single inline Markdown argument or stdin.");
   }
   return argv[0] ?? null;
@@ -609,35 +609,47 @@ async function openWithGlimpse(html, title, sessionFile) {
   await closedPromise;
   process.exit(0);
 }
-async function main() {
-  const inlineMarkdown = parseInput(process.argv.slice(2));
-  let markdown = "";
-  let sourceLabel = "stdin";
-  if (inlineMarkdown !== null) {
-    markdown = inlineMarkdown;
-    sourceLabel = "inline argument";
-  } else if (!process.stdin.isTTY) {
-    markdown = await readStdin();
-  } else {
-    printUsage();
-    process.exit(1);
-  }
+function renderAndWrite(markdown, sourceLabel) {
   const { html: bodyHtml, headings } = renderMarkdown(markdown);
   const firstHeading = headings.find((heading) => heading.level === 1)?.text || null;
   const title = firstHeading || "Markdown Preview";
-  const documentHtml = renderDocument({
-    bodyHtml,
-    title,
-    sourceLabel
-  });
+  const documentHtml = renderDocument({ bodyHtml, title, sourceLabel });
   const sessionId = randomBytes(6).toString("hex");
   const outPath = join(tmpdir(), `${slugify(title)}.html`);
   const sessionFile = join(tmpdir(), `glimpse-session-${sessionId}.jsonl`);
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, documentHtml, "utf8");
   writeFileSync(sessionFile, "", "utf8");
-  console.log(JSON.stringify({ htmlPath: outPath, sessionFile, title, opened: true }));
-  await openWithGlimpse(documentHtml, title, sessionFile);
+  return { documentHtml, title, outPath, sessionFile };
+}
+async function main() {
+  const args = process.argv.slice(2);
+  if (args[0] === "--child" && args[1]) {
+    const mdPath = args[1];
+    const markdown2 = readFileSync(mdPath, "utf8");
+    const { documentHtml, title, outPath, sessionFile } = renderAndWrite(markdown2, "detached");
+    console.log(JSON.stringify({ htmlPath: outPath, sessionFile, title, opened: true }));
+    await openWithGlimpse(documentHtml, title, sessionFile);
+    return;
+  }
+  const inlineMarkdown = parseInput(args);
+  let markdown = "";
+  if (inlineMarkdown !== null) {
+    markdown = inlineMarkdown;
+  } else if (!process.stdin.isTTY) {
+    markdown = await readStdin();
+  } else {
+    printUsage();
+    process.exit(1);
+  }
+  const mdTmp = join(tmpdir(), `glimpse-md-${randomBytes(6).toString("hex")}.md`);
+  writeFileSync(mdTmp, markdown, "utf8");
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--child", mdTmp], {
+    detached: true,
+    stdio: "ignore"
+  });
+  child.unref();
+  console.log(JSON.stringify({ detached: true, pid: child.pid }));
 }
 main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
