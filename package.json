@@ -1,0 +1,11 @@
+{
+  "name": "glimpse-changes",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "glimpse-changes": "./scripts/render-md.ts"
+  },
+  "dependencies": {
+    "glimpseui": "^0.5.1"
+  }
+}
