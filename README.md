@@ -2,6 +2,8 @@
 
 A CLI tool that renders Markdown with inline diffs into a native [Glimpse](https://glimpse.app) window, using a Critique-like theme.
 
+<img width="1656" height="1740" alt="Screenshot 2026-03-19 at 8 06 49 PM" src="https://github.com/user-attachments/assets/93cf947e-3f48-40bd-91cf-ee47c3d5a9c9" />
+
 ## What it does
 
 - Parses Markdown and renders it as a styled HTML page
