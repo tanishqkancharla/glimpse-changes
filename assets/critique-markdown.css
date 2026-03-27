@@ -9,7 +9,9 @@
   width: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo, "Ubuntu Mono", Consolas, monospace;
+  font-family:
+    "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo,
+    "Ubuntu Mono", Consolas, monospace;
 }
 
 .review-footer {
@@ -99,11 +101,13 @@
 
 .markdown-body ul,
 .markdown-body ol {
-  padding-left: 2ch;
+  padding-left: 3ch;
+  list-style-position: outside;
 }
 
 .markdown-body li::marker {
   color: var(--accent);
+  font-size: 0.8em;
 }
 
 .markdown-body a {
@@ -111,7 +115,9 @@
 }
 
 .markdown-body code {
-  font-family: "JetBrains Mono Nerd", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    "JetBrains Mono Nerd", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
   color: inherit;
 }
 
@@ -194,11 +200,8 @@
   border-radius: 0;
   overflow: visible;
   background: transparent;
-  width: min(140ch, calc(100vw - 32px));
-  max-width: min(140ch, calc(100vw - 32px));
-  position: relative;
-  left: 50%;
-  transform: translateX(-50%);
+  width: 100%;
+  max-width: 100%;
 }
 
 .markdown-body .diff-shell {
@@ -266,8 +269,12 @@ body[data-diff-style="unified"] .diff-shell {
   width: 100%;
   font-size: 12px;
   max-width: 100%;
-  --diffs-font-family: "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo, "Ubuntu Mono", Consolas, monospace;
-  --diffs-header-font-family: "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo, "Ubuntu Mono", Consolas, monospace;
+  --diffs-font-family:
+    "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo,
+    "Ubuntu Mono", Consolas, monospace;
+  --diffs-header-font-family:
+    "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo,
+    "Ubuntu Mono", Consolas, monospace;
   --diffs-bg: var(--bg);
   --diffs-fg: var(--text);
   --diffs-fg-number: var(--muted);
@@ -277,8 +284,16 @@ body[data-diff-style="unified"] .diff-shell {
   --diffs-bg-deletion: var(--diff-remove-bg);
   --diffs-bg-addition-number: var(--diff-add-bg);
   --diffs-bg-deletion-number: var(--diff-remove-bg);
-  --diffs-bg-addition-emphasis: color-mix(in srgb, var(--diff-add-bg) 68%, var(--diff-add) 32%);
-  --diffs-bg-deletion-emphasis: color-mix(in srgb, var(--diff-remove-bg) 68%, var(--diff-remove) 32%);
+  --diffs-bg-addition-emphasis: color-mix(
+    in srgb,
+    var(--diff-add-bg) 68%,
+    var(--diff-add) 32%
+  );
+  --diffs-bg-deletion-emphasis: color-mix(
+    in srgb,
+    var(--diff-remove-bg) 68%,
+    var(--diff-remove) 32%
+  );
   --diffs-addition-base: var(--diff-add);
   --diffs-deletion-base: var(--diff-remove);
   --diffs-modified-base: var(--diff-hunk);
@@ -288,6 +303,23 @@ body[data-diff-style="unified"] .diff-shell {
   --diffs-gap-block: 8px;
   --diffs-min-number-column-width: var(--diffs-min-number-column-width-default);
   font-variant-numeric: tabular-nums lining-nums;
+}
+
+.code-file-block {
+  width: 100%;
+  max-width: 100%;
+}
+
+.code-scroll {
+  max-height: var(--diff-shell-max-height);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.code-shell .diffs-host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
 }
 
 .code-label {
@@ -300,8 +332,8 @@ body[data-diff-style="unified"] .diff-shell {
   overflow-x: auto;
   background: transparent;
   color: var(--text);
-  width: fit-content;
-  min-width: min(110ch, calc(100vw - 32px));
+  width: 100%;
+  min-width: 0;
 }
 
 .code-block code {
@@ -313,7 +345,9 @@ body[data-diff-style="unified"] .diff-shell {
   display: block;
   padding: 0 1ch;
   white-space: pre;
-  font-family: "JetBrains Mono Nerd", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    "JetBrains Mono Nerd", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
   line-height: 1.7;
 }
 
@@ -370,7 +404,6 @@ body[data-diff-style="unified"] .diff-shell {
     margin-left: auto;
   }
 
-  .code-shell,
   .diff-shell {
     left: 0;
     transform: none;
@@ -379,5 +412,4 @@ body[data-diff-style="unified"] .diff-shell {
   .diffs-host {
     width: 100%;
   }
-
 }

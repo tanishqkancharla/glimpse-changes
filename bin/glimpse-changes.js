@@ -4,7 +4,13 @@
 // scripts/render-md.ts
 import { execSync, spawn } from "child_process";
 import { randomBytes } from "crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync
+} from "fs";
 import { dirname, join } from "path";
 import { tmpdir } from "os";
 import { fileURLToPath } from "url";
@@ -146,7 +152,9 @@ function renderDiffBlock(code) {
 }
 function renderPlainCodeBlock(code, language) {
   const lang = (language || "").trim().toLowerCase();
-  return `<div class="code-shell"><div class="code-label">${escapeHtml(lang || "text")}</div><pre class="code-block"><code>${escapeHtml(code.replace(/\n$/, ""))}</code></pre></div>`;
+  const contentsBase64 = encodeBase64Utf8(code.replace(/\n$/, ""));
+  const filename = lang ? `file.${lang}` : "file.txt";
+  return `<div class="code-shell" data-code-shell data-code-contents="${contentsBase64}" data-code-filename="${escapeHtml(filename)}" data-code-lang="${escapeHtml(lang || "text")}"><div class="code-label">${escapeHtml(lang || "text")}</div><pre class="code-block"><code>${escapeHtml(code.replace(/\n$/, ""))}</code></pre></div>`;
 }
 function executeCommand(command) {
   try {
@@ -181,11 +189,58 @@ function renderCommandDiff(command) {
   validateDiffOutput(output, trimmedCommand);
   return renderDiffBlock(output);
 }
+function hasUnifiedDiffStructure(lines) {
+  return lines.some((line) => line.startsWith("diff --git ") || isValidUnifiedHunkHeader(line));
+}
+function validateInlineDiffLines(lines) {
+  for (let i = 0;i < lines.length; i++) {
+    const line = lines[i];
+    if (line === "")
+      continue;
+    if (/^[+\- ]/.test(line))
+      continue;
+    throw new Error(`Invalid inline diff at line ${i + 1}: every non-empty line must start with '+', '-', or ' ' (space). Got: ${JSON.stringify(line)}`);
+  }
+}
+function wrapInlineDiffAsUnified(code) {
+  const lines = code.replace(/\n$/, "").split(`
+`);
+  validateInlineDiffLines(lines);
+  let oldCount = 0;
+  let newCount = 0;
+  for (const line of lines) {
+    if (line === "")
+      continue;
+    const prefix = line[0];
+    if (prefix === "-") {
+      oldCount += 1;
+    } else if (prefix === "+") {
+      newCount += 1;
+    } else {
+      oldCount += 1;
+      newCount += 1;
+    }
+  }
+  const header = [
+    "diff --git a/file b/file",
+    "--- a/file",
+    "+++ b/file",
+    `@@ -${formatUnifiedRange(1, oldCount)} +${formatUnifiedRange(1, newCount)} @@`
+  ];
+  return [...header, ...lines].join(`
+`);
+}
 function renderCodeBlock(code, language) {
   const lang = (language || "").trim().toLowerCase();
   const lines = code.replace(/\n$/, "").split(`
 `);
-  const isDiff = lang === "diff" || lines.some((line) => /^(@@|diff --git |[+-])/.test(line));
+  if (lang === "diff") {
+    if (hasUnifiedDiffStructure(lines)) {
+      return renderDiffBlock(code);
+    }
+    return renderDiffBlock(wrapInlineDiffAsUnified(code));
+  }
+  const isDiff = lines.some((line) => /^(@@|diff --git |[+-])/.test(line));
   if (isDiff) {
     return renderDiffBlock(code);
   }
@@ -516,6 +571,48 @@ try {
   for (const shellState of shellStates) {
     await renderShell(shellState, preloadPatchFile, renderHTML, state);
   }
+
+  // Render plain code blocks with syntax highlighting
+  const { preloadFile } = ssrMod;
+  for (const shell of document.querySelectorAll("[data-code-shell]")) {
+    try {
+      const contents = decodeBase64Utf8(shell.dataset.codeContents || "");
+      const filename = shell.dataset.codeFilename || "file.txt";
+
+      const result = await preloadFile({
+        file: { name: filename, contents },
+        options: {
+          overflow: "wrap",
+          disableLineNumbers: false,
+          disableFileHeader: true,
+          themeType: "light",
+          unsafeCSS: diffUnsafeCss,
+        },
+      });
+
+      if (result && result.prerenderedHTML) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "code-file-block";
+        const scroll = document.createElement("div");
+        scroll.className = "code-scroll";
+        const host = document.createElement("div");
+        host.className = "diffs-host";
+        host.innerHTML = Array.isArray(result.prerenderedHTML)
+          ? renderHTML(result.prerenderedHTML)
+          : String(result.prerenderedHTML || "");
+        scroll.append(host);
+        wrapper.append(scroll);
+
+        // Keep the label, replace the pre/code fallback
+        const label = shell.querySelector(".code-label");
+        const pre = shell.querySelector("pre.code-block");
+        if (pre) pre.replaceWith(wrapper);
+      }
+    } catch (error) {
+      console.error("Failed to render code block.", error);
+      // Falls back to the plain pre/code already in the DOM
+    }
+  }
 } catch (error) {
   console.error("Failed to load @pierre/diffs.", error);
 }
@@ -628,7 +725,12 @@ async function main() {
     const metaPath = args[1];
     const meta = JSON.parse(readFileSync(metaPath, "utf8"));
     const documentHtml2 = readFileSync(meta.htmlPath, "utf8");
-    console.log(JSON.stringify({ htmlPath: meta.htmlPath, sessionFile: meta.sessionFile, title: meta.title, opened: true }));
+    console.log(JSON.stringify({
+      htmlPath: meta.htmlPath,
+      sessionFile: meta.sessionFile,
+      title: meta.title,
+      opened: true
+    }));
     await openWithGlimpse(documentHtml2, meta.title, meta.sessionFile);
     return;
   }

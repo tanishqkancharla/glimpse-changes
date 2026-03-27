@@ -2,7 +2,13 @@
 
 import { execSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -13,7 +19,8 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const skillDir = dirname(scriptDir);
 const assetsDir = join(skillDir, "assets");
 const DEFAULT_DIFFS_MODULE_URL = "https://esm.sh/@pierre/diffs@1.1.1?bundle";
-const DEFAULT_DIFFS_SSR_MODULE_URL = "https://esm.sh/@pierre/diffs@1.1.1/ssr?bundle";
+const DEFAULT_DIFFS_SSR_MODULE_URL =
+  "https://esm.sh/@pierre/diffs@1.1.1/ssr?bundle";
 const DEFAULT_WIDTH = 1600;
 const DEFAULT_HEIGHT = 920;
 
@@ -60,11 +67,13 @@ function escapeHtml(value) {
 }
 
 function slugify(value) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80) || "section";
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "section"
+  );
 }
 
 function encodeBase64Utf8(value) {
@@ -157,10 +166,13 @@ function parseInline(text) {
   });
   escaped = escaped.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   escaped = escaped.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-  escaped = escaped.replace(/(^|[\s(])(https?:\/\/[^\s)]+)/g, (_, lead, href) => {
-    const safeHref = escapeHtml(href);
-    return `${lead}<a href="${safeHref}" target="_blank" rel="noreferrer">${safeHref}</a>`;
-  });
+  escaped = escaped.replace(
+    /(^|[\s(])(https?:\/\/[^\s)]+)/g,
+    (_, lead, href) => {
+      const safeHref = escapeHtml(href);
+      return `${lead}<a href="${safeHref}" target="_blank" rel="noreferrer">${safeHref}</a>`;
+    },
+  );
 
   return codeSpans.reduce(
     (result, html, index) => result.replace(`__CODE_${index}__`, html),
@@ -178,7 +190,9 @@ function renderDiffBlock(code) {
 
 function renderPlainCodeBlock(code, language) {
   const lang = (language || "").trim().toLowerCase();
-  return `<div class="code-shell"><div class="code-label">${escapeHtml(lang || "text")}</div><pre class="code-block"><code>${escapeHtml(code.replace(/\n$/, ""))}</code></pre></div>`;
+  const contentsBase64 = encodeBase64Utf8(code.replace(/\n$/, ""));
+  const filename = lang ? `file.${lang}` : "file.txt";
+  return `<div class="code-shell" data-code-shell data-code-contents="${contentsBase64}" data-code-filename="${escapeHtml(filename)}" data-code-lang="${escapeHtml(lang || "text")}"><div class="code-label">${escapeHtml(lang || "text")}</div><pre class="code-block"><code>${escapeHtml(code.replace(/\n$/, ""))}</code></pre></div>`;
 }
 
 function executeCommand(command) {
@@ -216,11 +230,65 @@ function renderCommandDiff(command) {
   return renderDiffBlock(output);
 }
 
+function hasUnifiedDiffStructure(lines) {
+  return lines.some(
+    (line) => line.startsWith("diff --git ") || isValidUnifiedHunkHeader(line),
+  );
+}
+
+function validateInlineDiffLines(lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line === "") continue;
+    if (/^[+\- ]/.test(line)) continue;
+    throw new Error(
+      `Invalid inline diff at line ${i + 1}: every non-empty line must start with '+', '-', or ' ' (space). Got: ${JSON.stringify(line)}`,
+    );
+  }
+}
+
+function wrapInlineDiffAsUnified(code) {
+  const lines = code.replace(/\n$/, "").split("\n");
+
+  validateInlineDiffLines(lines);
+
+  let oldCount = 0;
+  let newCount = 0;
+  for (const line of lines) {
+    if (line === "") continue;
+    const prefix = line[0];
+    if (prefix === "-") {
+      oldCount += 1;
+    } else if (prefix === "+") {
+      newCount += 1;
+    } else {
+      oldCount += 1;
+      newCount += 1;
+    }
+  }
+
+  const header = [
+    "diff --git a/file b/file",
+    "--- a/file",
+    "+++ b/file",
+    `@@ -${formatUnifiedRange(1, oldCount)} +${formatUnifiedRange(1, newCount)} @@`,
+  ];
+
+  return [...header, ...lines].join("\n");
+}
+
 function renderCodeBlock(code, language) {
   const lang = (language || "").trim().toLowerCase();
   const lines = code.replace(/\n$/, "").split("\n");
-  const isDiff = lang === "diff" || lines.some((line) => /^(@@|diff --git |[+-])/.test(line));
 
+  if (lang === "diff") {
+    if (hasUnifiedDiffStructure(lines)) {
+      return renderDiffBlock(code);
+    }
+    return renderDiffBlock(wrapInlineDiffAsUnified(code));
+  }
+
+  const isDiff = lines.some((line) => /^(@@|diff --git |[+-])/.test(line));
   if (isDiff) {
     return renderDiffBlock(code);
   }
@@ -240,7 +308,9 @@ function parseFenceOpen(trimmed) {
 }
 
 function isFenceClose(trimmed, opener) {
-  const close = new RegExp(`^${opener.markerChar}{${opener.markerLength},}\\s*$`);
+  const close = new RegExp(
+    `^${opener.markerChar}{${opener.markerLength},}\\s*$`,
+  );
   return close.test(trimmed);
 }
 
@@ -293,7 +363,10 @@ function renderMarkdown(markdown) {
     if (fenceOpen) {
       const buffer = [];
       index += 1;
-      while (index < lines.length && !isFenceClose(lines[index].trim(), fenceOpen)) {
+      while (
+        index < lines.length &&
+        !isFenceClose(lines[index].trim(), fenceOpen)
+      ) {
         buffer.push(lines[index]);
         index += 1;
       }
@@ -314,7 +387,9 @@ function renderMarkdown(markdown) {
         quoteLines.push(lines[index].replace(/^>\s?/, ""));
         index += 1;
       }
-      html.push(`<blockquote>${quoteLines.map((quoteLine) => parseInline(quoteLine)).join("<br />")}</blockquote>`);
+      html.push(
+        `<blockquote>${quoteLines.map((quoteLine) => parseInline(quoteLine)).join("<br />")}</blockquote>`,
+      );
       continue;
     }
 
@@ -324,7 +399,9 @@ function renderMarkdown(markdown) {
         items.push(lines[index].replace(/^[-*+]\s+/, ""));
         index += 1;
       }
-      html.push(`<ul>${items.map((item) => `<li>${parseInline(item)}</li>`).join("")}</ul>`);
+      html.push(
+        `<ul>${items.map((item) => `<li>${parseInline(item)}</li>`).join("")}</ul>`,
+      );
       continue;
     }
 
@@ -334,11 +411,17 @@ function renderMarkdown(markdown) {
         items.push(lines[index].replace(/^\d+\.\s+/, ""));
         index += 1;
       }
-      html.push(`<ol>${items.map((item) => `<li>${parseInline(item)}</li>`).join("")}</ol>`);
+      html.push(
+        `<ol>${items.map((item) => `<li>${parseInline(item)}</li>`).join("")}</ol>`,
+      );
       continue;
     }
 
-    if (/^\|(.+)\|/.test(trimmed) && index + 1 < lines.length && /^\|[\s:]*-+[\s:]*/.test(lines[index + 1].trim())) {
+    if (
+      /^\|(.+)\|/.test(trimmed) &&
+      index + 1 < lines.length &&
+      /^\|[\s:]*-+[\s:]*/.test(lines[index + 1].trim())
+    ) {
       const tableRows = [];
       while (index < lines.length && /^\|(.+)\|/.test(lines[index].trim())) {
         tableRows.push(lines[index].trim());
@@ -346,7 +429,11 @@ function renderMarkdown(markdown) {
       }
       if (tableRows.length >= 2) {
         const parseRow = (row) =>
-          row.replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+          row
+            .replace(/^\|/, "")
+            .replace(/\|$/, "")
+            .split("|")
+            .map((cell) => cell.trim());
         const headerCells = parseRow(tableRows[0]);
         const separatorCells = parseRow(tableRows[1]);
         const alignments = separatorCells.map((cell) => {
@@ -361,7 +448,8 @@ function renderMarkdown(markdown) {
           const cells = parseRow(row);
           return `<tr>${cells.map((cell, i) => `<td align="${alignments[i] || "left"}">${parseInline(cell)}</td>`).join("")}</tr>`;
         });
-        const tbody = bodyRows.length > 0 ? `<tbody>${bodyRows.join("")}</tbody>` : "";
+        const tbody =
+          bodyRows.length > 0 ? `<tbody>${bodyRows.join("")}</tbody>` : "";
         html.push(`<table>${thead}${tbody}</table>`);
       }
       continue;
@@ -573,6 +661,48 @@ try {
   for (const shellState of shellStates) {
     await renderShell(shellState, preloadPatchFile, renderHTML, state);
   }
+
+  // Render plain code blocks with syntax highlighting
+  const { preloadFile } = ssrMod;
+  for (const shell of document.querySelectorAll("[data-code-shell]")) {
+    try {
+      const contents = decodeBase64Utf8(shell.dataset.codeContents || "");
+      const filename = shell.dataset.codeFilename || "file.txt";
+
+      const result = await preloadFile({
+        file: { name: filename, contents },
+        options: {
+          overflow: "wrap",
+          disableLineNumbers: false,
+          disableFileHeader: true,
+          themeType: "light",
+          unsafeCSS: diffUnsafeCss,
+        },
+      });
+
+      if (result && result.prerenderedHTML) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "code-file-block";
+        const scroll = document.createElement("div");
+        scroll.className = "code-scroll";
+        const host = document.createElement("div");
+        host.className = "diffs-host";
+        host.innerHTML = Array.isArray(result.prerenderedHTML)
+          ? renderHTML(result.prerenderedHTML)
+          : String(result.prerenderedHTML || "");
+        scroll.append(host);
+        wrapper.append(scroll);
+
+        // Keep the label, replace the pre/code fallback
+        const label = shell.querySelector(".code-label");
+        const pre = shell.querySelector("pre.code-block");
+        if (pre) pre.replaceWith(wrapper);
+      }
+    } catch (error) {
+      console.error("Failed to render code block.", error);
+      // Falls back to the plain pre/code already in the DOM
+    }
+  }
 } catch (error) {
   console.error("Failed to load @pierre/diffs.", error);
 }
@@ -679,7 +809,8 @@ async function openWithGlimpse(html, title, sessionFile) {
 
 function renderAndWrite(markdown: string, sourceLabel: string) {
   const { html: bodyHtml, headings } = renderMarkdown(markdown);
-  const firstHeading = headings.find((heading) => heading.level === 1)?.text || null;
+  const firstHeading =
+    headings.find((heading) => heading.level === 1)?.text || null;
   const title = firstHeading || "Markdown Preview";
   const documentHtml = renderDocument({ bodyHtml, title, sourceLabel });
   const sessionId = randomBytes(6).toString("hex");
@@ -701,7 +832,14 @@ async function main() {
     const metaPath = args[1];
     const meta = JSON.parse(readFileSync(metaPath, "utf8"));
     const documentHtml = readFileSync(meta.htmlPath, "utf8");
-    console.log(JSON.stringify({ htmlPath: meta.htmlPath, sessionFile: meta.sessionFile, title: meta.title, opened: true }));
+    console.log(
+      JSON.stringify({
+        htmlPath: meta.htmlPath,
+        sessionFile: meta.sessionFile,
+        title: meta.title,
+        opened: true,
+      }),
+    );
     await openWithGlimpse(documentHtml, meta.title, meta.sessionFile);
     return;
   }
@@ -724,16 +862,30 @@ async function main() {
   }
 
   // Render and validate before detaching — any errors (bad diffs, etc.) surface here.
-  const { documentHtml, title, outPath, sessionFile } = renderAndWrite(markdown, "detached");
+  const { documentHtml, title, outPath, sessionFile } = renderAndWrite(
+    markdown,
+    "detached",
+  );
 
   // Write metadata to a temp file and spawn a detached child to open Glimpse.
-  const metaTmp = join(tmpdir(), `glimpse-meta-${randomBytes(6).toString("hex")}.json`);
-  writeFileSync(metaTmp, JSON.stringify({ htmlPath: outPath, sessionFile, title }), "utf8");
+  const metaTmp = join(
+    tmpdir(),
+    `glimpse-meta-${randomBytes(6).toString("hex")}.json`,
+  );
+  writeFileSync(
+    metaTmp,
+    JSON.stringify({ htmlPath: outPath, sessionFile, title }),
+    "utf8",
+  );
 
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--child", metaTmp], {
-    detached: true,
-    stdio: "ignore",
-  });
+  const child = spawn(
+    process.execPath,
+    [fileURLToPath(import.meta.url), "--child", metaTmp],
+    {
+      detached: true,
+      stdio: "ignore",
+    },
+  );
   child.unref();
 
   console.log(JSON.stringify({ detached: true, pid: child.pid }));

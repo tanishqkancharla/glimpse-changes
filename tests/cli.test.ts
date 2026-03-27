@@ -6,7 +6,10 @@ import { tmpdir } from "os";
 
 const CLI = join(__dirname, "..", "bin", "glimpse-changes.js");
 
-function run(args: string[], input?: string): { stdout: string; stderr: string; exitCode: number } {
+function run(
+  args: string[],
+  input?: string,
+): { stdout: string; stderr: string; exitCode: number } {
   try {
     const stdout = execFileSync("node", [CLI, ...args], {
       encoding: "utf8",
@@ -92,7 +95,10 @@ describe("glimpse-changes CLI", () => {
       // Write a temp markdown file and invoke --child directly
       const { writeFileSync } = require("fs");
       const { randomBytes } = require("crypto");
-      const mdPath = join(tmpdir(), `test-${randomBytes(4).toString("hex")}.md`);
+      const mdPath = join(
+        tmpdir(),
+        `test-${randomBytes(4).toString("hex")}.md`,
+      );
       writeFileSync(mdPath, "# Test Title\n\nHello **world**.\n");
 
       // --child will try to open Glimpse which will fail/hang in CI,
@@ -105,7 +111,9 @@ describe("glimpse-changes CLI", () => {
     it("errors with multiple non-child arguments", () => {
       const result = run(["arg1", "arg2"]);
       expect(result.exitCode).not.toBe(0);
-      expect(result.stderr).toContain("Expected a single inline Markdown argument or stdin.");
+      expect(result.stderr).toContain(
+        "Expected a single inline Markdown argument or stdin.",
+      );
     });
 
     it("errors on empty string argument", () => {
@@ -151,16 +159,102 @@ describe("glimpse-changes CLI", () => {
     });
   });
 
-  describe("pre-detach validation", () => {
-    it("errors on invalid command diff (non-git-diff command)", () => {
-      const md = '# Bad Command\n\n!`echo hello`\n';
+  describe("inline diff blocks", () => {
+    it("handles bare inline diff with +/- lines", () => {
+      const md = [
+        "# Inline Diff",
+        "",
+        "```diff",
+        "- old line",
+        "+ new line",
+        "  context line",
+        "```",
+      ].join("\n");
+
+      const result = run([], md);
+      expect(result.exitCode).toBe(0);
+      const output = JSON.parse(result.stdout.trim());
+      expect(output.detached).toBe(true);
+    });
+
+    it("handles inline diff with only additions", () => {
+      const md = [
+        "# Additions Only",
+        "",
+        "```diff",
+        "+ added line 1",
+        "+ added line 2",
+        "```",
+      ].join("\n");
+
+      const result = run([], md);
+      expect(result.exitCode).toBe(0);
+    });
+
+    it("handles inline diff with only removals", () => {
+      const md = [
+        "# Removals Only",
+        "",
+        "```diff",
+        "- removed line 1",
+        "- removed line 2",
+        "```",
+      ].join("\n");
+
+      const result = run([], md);
+      expect(result.exitCode).toBe(0);
+    });
+
+    it("errors on invalid inline diff lines", () => {
+      const md = [
+        "# Bad Inline Diff",
+        "",
+        "```diff",
+        "this line has no prefix",
+        "+ good line",
+        "```",
+      ].join("\n");
+
       const result = run([], md);
       expect(result.exitCode).not.toBe(0);
-      expect(result.stderr).toContain('Command diffs must start with "git diff"');
+      expect(result.stderr).toContain("Invalid inline diff at line 1");
+    });
+
+    it("still handles full unified diffs tagged as diff", () => {
+      const md = [
+        "# Full Unified",
+        "",
+        "```diff",
+        "diff --git a/foo.txt b/foo.txt",
+        "--- a/foo.txt",
+        "+++ b/foo.txt",
+        "@@ -1,3 +1,3 @@",
+        " line1",
+        "-old line",
+        "+new line",
+        " line3",
+        "```",
+      ].join("\n");
+
+      const result = run([], md);
+      expect(result.exitCode).toBe(0);
+      const output = JSON.parse(result.stdout.trim());
+      expect(output.detached).toBe(true);
+    });
+  });
+
+  describe("pre-detach validation", () => {
+    it("errors on invalid command diff (non-git-diff command)", () => {
+      const md = "# Bad Command\n\n!`echo hello`\n";
+      const result = run([], md);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain(
+        'Command diffs must start with "git diff"',
+      );
     });
 
     it("errors on command diff that produces no valid diff output", () => {
-      const md = '# Bad Diff\n\n!`git diff --no-such-flag-xxxxx`\n';
+      const md = "# Bad Diff\n\n!`git diff --no-such-flag-xxxxx`\n";
       const result = run([], md);
       expect(result.exitCode).not.toBe(0);
     });
