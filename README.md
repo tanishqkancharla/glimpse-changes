@@ -48,6 +48,8 @@ Fenced code blocks with language `diff` (or any block whose lines match unified 
 ```
 ````
 
+For added-file snippets, you can also start the block with `+++ path/to/file.ext` and keep each added line prefixed with `+`. Glimpse Changes will synthesize a proper new-file diff so the file path and syntax highlighting are preserved.
+
 ## Assets
 
 | File | Purpose |

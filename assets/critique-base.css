@@ -8,7 +8,10 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
   line-height: 1.5;
   tab-size: 4;
   font-family: "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo, "Ubuntu Mono", Consolas, monospace;

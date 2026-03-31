@@ -26,6 +26,28 @@ function run(
   }
 }
 
+function slugify(value: string) {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "section"
+  );
+}
+
+function readRenderedHtml(title: string) {
+  const htmlPath = join(tmpdir(), `${slugify(title)}.html`);
+  expect(existsSync(htmlPath)).toBe(true);
+  return readFileSync(htmlPath, "utf8");
+}
+
+function decodeBase64DataAttribute(html: string, attribute: string) {
+  const match = new RegExp(`${attribute}="([^"]+)"`).exec(html);
+  expect(match).not.toBeNull();
+  return Buffer.from(match![1], "base64").toString("utf8");
+}
+
 describe("glimpse-changes CLI", () => {
   describe("--help", () => {
     it("prints usage and exits 0", () => {
@@ -160,6 +182,41 @@ describe("glimpse-changes CLI", () => {
   });
 
   describe("inline diff blocks", () => {
+    it("preserves added-file paths for inline diff shorthands", () => {
+      const title = "Inline Added File Diff";
+      const md = [
+        `# ${title}`,
+        "",
+        "```diff",
+        "+++ packages/libretto/test/create-libretto.spec.ts",
+        "+const result = await execProcess(",
+        "+  process.execPath,",
+        "+  [createLibrettoBin, \"--skip-browsers\"],",
+        "+  workspaceDir,",
+        "+);",
+        "```",
+      ].join("\n");
+
+      const result = run([], md);
+      expect(result.exitCode).toBe(0);
+
+      const html = readRenderedHtml(title);
+      const patch = decodeBase64DataAttribute(html, "data-diff-patch");
+
+      expect(patch).toContain(
+        "diff --git a/packages/libretto/test/create-libretto.spec.ts b/packages/libretto/test/create-libretto.spec.ts",
+      );
+      expect(patch).toContain("new file mode 100644");
+      expect(patch).toContain("--- /dev/null");
+      expect(patch).toContain(
+        "+++ b/packages/libretto/test/create-libretto.spec.ts",
+      );
+      expect(patch).toContain('+  [createLibrettoBin, "--skip-browsers"],');
+      expect(patch).not.toContain(
+        "@@ -0,0 +1,5 @@\n+++ packages/libretto/test/create-libretto.spec.ts",
+      );
+    });
+
     it("handles bare inline diff with +/- lines", () => {
       const md = [
         "# Inline Diff",
@@ -240,6 +297,25 @@ describe("glimpse-changes CLI", () => {
       expect(result.exitCode).toBe(0);
       const output = JSON.parse(result.stdout.trim());
       expect(output.detached).toBe(true);
+    });
+
+    it("does not auto-detect mixed code blocks as diffs", () => {
+      const title = "Mixed Code Block";
+      const md = [
+        `# ${title}`,
+        "",
+        "```ts",
+        "const positive = +value;",
+        "const negative = -otherValue;",
+        "```",
+      ].join("\n");
+
+      const result = run([], md);
+      expect(result.exitCode).toBe(0);
+
+      const html = readRenderedHtml(title);
+      expect(html).toContain('<div class="code-shell" data-code-shell');
+      expect(html).not.toContain('<div class="diff-shell" data-diff-shell');
     });
   });
 

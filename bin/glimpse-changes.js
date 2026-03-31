@@ -192,6 +192,53 @@ function renderCommandDiff(command) {
 function hasUnifiedDiffStructure(lines) {
   return lines.some((line) => line.startsWith("diff --git ") || isValidUnifiedHunkHeader(line));
 }
+function isInlineDiffCandidate(lines) {
+  const nonEmptyLines = lines.filter((line) => line !== "");
+  return nonEmptyLines.length > 0 && nonEmptyLines.every((line) => /^[+\- ]/.test(line));
+}
+function normalizeInlineDiffPath(path) {
+  return path.trim().replace(/^[ab]\//, "");
+}
+function tryWrapInlineFileDiffAsUnified(lines) {
+  const firstLine = lines[0] ?? "";
+  const addedFileMatch = /^\+\+\+\s+(.+)$/.exec(firstLine);
+  if (addedFileMatch) {
+    const filename = normalizeInlineDiffPath(addedFileMatch[1]);
+    const bodyLines = lines.slice(1);
+    const hasOnlyAdditions = bodyLines.every((line) => line === "" || line.startsWith("+"));
+    if (filename && bodyLines.length > 0 && hasOnlyAdditions) {
+      const newCount = bodyLines.filter((line) => line !== "").length;
+      return [
+        `diff --git a/${filename} b/${filename}`,
+        "new file mode 100644",
+        "--- /dev/null",
+        `+++ b/${filename}`,
+        `@@ -0,0 +${formatUnifiedRange(1, newCount)} @@`,
+        ...bodyLines
+      ].join(`
+`);
+    }
+  }
+  const deletedFileMatch = /^---\s+(.+)$/.exec(firstLine);
+  if (deletedFileMatch) {
+    const filename = normalizeInlineDiffPath(deletedFileMatch[1]);
+    const bodyLines = lines.slice(1);
+    const hasOnlyRemovals = bodyLines.every((line) => line === "" || line.startsWith("-"));
+    if (filename && bodyLines.length > 0 && hasOnlyRemovals) {
+      const oldCount = bodyLines.filter((line) => line !== "").length;
+      return [
+        `diff --git a/${filename} b/${filename}`,
+        "deleted file mode 100644",
+        `--- a/${filename}`,
+        "+++ /dev/null",
+        `@@ -${formatUnifiedRange(1, oldCount)} +0,0 @@`,
+        ...bodyLines
+      ].join(`
+`);
+    }
+  }
+  return null;
+}
 function validateInlineDiffLines(lines) {
   for (let i = 0;i < lines.length; i++) {
     const line = lines[i];
@@ -205,6 +252,10 @@ function validateInlineDiffLines(lines) {
 function wrapInlineDiffAsUnified(code) {
   const lines = code.replace(/\n$/, "").split(`
 `);
+  const filePatch = tryWrapInlineFileDiffAsUnified(lines);
+  if (filePatch) {
+    return filePatch;
+  }
   validateInlineDiffLines(lines);
   let oldCount = 0;
   let newCount = 0;
@@ -240,7 +291,7 @@ function renderCodeBlock(code, language) {
     }
     return renderDiffBlock(wrapInlineDiffAsUnified(code));
   }
-  const isDiff = lines.some((line) => /^(@@|diff --git |[+-])/.test(line));
+  const isDiff = hasUnifiedDiffStructure(lines) || isInlineDiffCandidate(lines);
   if (isDiff) {
     return renderDiffBlock(code);
   }
