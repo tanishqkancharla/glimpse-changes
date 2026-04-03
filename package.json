@@ -1,23 +1,15 @@
 {
-  "name": "glimpse-changes",
-  "version": "0.6.0",
-  "type": "module",
-  "bin": {
-    "glimpse-changes": "bin/glimpse-changes.js"
-  },
-  "files": [
-    "bin",
-    "assets",
-    "skills"
-  ],
+  "name": "glimpse-changes-monorepo",
+  "private": true,
   "scripts": {
-    "build": "bun build scripts/render-md.ts --target=node --outfile=bin/glimpse-changes.js --external glimpseui && sed -i '' '1s|.*|#!/usr/bin/env node|' bin/glimpse-changes.js",
-    "test": "vitest run"
+    "build": "pnpm -r build",
+    "test": "pnpm -r test"
   },
-  "dependencies": {
-    "glimpseui": "^0.6.2"
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "glimpseui"
+    ]
   },
-  "devDependencies": {
-    "vitest": "^3.2.4"
-  }
+  "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319"
 }

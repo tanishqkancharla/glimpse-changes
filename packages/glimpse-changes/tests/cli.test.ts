@@ -65,22 +65,21 @@ describe("glimpse-changes CLI", () => {
   });
 
   describe("inline markdown argument", () => {
-    it("accepts inline markdown and spawns detached child", () => {
-      const result = run(["# Hello World"]);
+    it("accepts inline markdown with --dry-run", () => {
+      const result = run(["--dry-run", "# Hello World"]);
       expect(result.exitCode).toBe(0);
       const output = JSON.parse(result.stdout.trim());
-      expect(output.detached).toBe(true);
-      expect(output.pid).toBeTypeOf("number");
+      expect(output.dryRun).toBe(true);
+      expect(output.htmlPath).toBeTypeOf("string");
     });
   });
 
   describe("stdin input", () => {
-    it("accepts markdown via stdin and spawns detached child", () => {
-      const result = run([], "# From Stdin\n\nSome content here.");
+    it("accepts markdown via stdin with --dry-run", () => {
+      const result = run(["--dry-run"], "# From Stdin\n\nSome content here.");
       expect(result.exitCode).toBe(0);
       const output = JSON.parse(result.stdout.trim());
-      expect(output.detached).toBe(true);
-      expect(output.pid).toBeTypeOf("number");
+      expect(output.dryRun).toBe(true);
     });
 
     it("handles complex markdown via stdin", () => {
@@ -105,27 +104,10 @@ describe("glimpse-changes CLI", () => {
         "2. Second",
       ].join("\n");
 
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).toBe(0);
       const output = JSON.parse(result.stdout.trim());
-      expect(output.detached).toBe(true);
-    });
-  });
-
-  describe("--child mode (direct rendering)", () => {
-    it("renders markdown to HTML and outputs metadata", () => {
-      // Write a temp markdown file and invoke --child directly
-      const { writeFileSync } = require("fs");
-      const { randomBytes } = require("crypto");
-      const mdPath = join(
-        tmpdir(),
-        `test-${randomBytes(4).toString("hex")}.md`,
-      );
-      writeFileSync(mdPath, "# Test Title\n\nHello **world**.\n");
-
-      // --child will try to open Glimpse which will fail/hang in CI,
-      // so we just test that the process starts and outputs JSON before opening
-      // We can't fully test this without glimpseui running, so skip
+      expect(output.dryRun).toBe(true);
     });
   });
 
@@ -139,19 +121,19 @@ describe("glimpse-changes CLI", () => {
     });
 
     it("errors on empty string argument", () => {
-      const result = run([""]);
+      const result = run(["--dry-run", ""]);
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toContain("No markdown content provided.");
     });
 
     it("errors on empty stdin", () => {
-      const result = run([], "");
+      const result = run(["--dry-run"], "");
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toContain("No markdown content provided.");
     });
 
     it("errors on whitespace-only input", () => {
-      const result = run(["   \n\n  "]);
+      const result = run(["--dry-run", "   \n\n  "]);
       expect(result.exitCode).toBe(1);
       expect(result.stderr).toContain("No markdown content provided.");
     });
@@ -174,10 +156,10 @@ describe("glimpse-changes CLI", () => {
         "```",
       ].join("\n");
 
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).toBe(0);
       const output = JSON.parse(result.stdout.trim());
-      expect(output.detached).toBe(true);
+      expect(output.dryRun).toBe(true);
     });
   });
 
@@ -191,13 +173,13 @@ describe("glimpse-changes CLI", () => {
         "+++ packages/libretto/test/create-libretto.spec.ts",
         "+const result = await execProcess(",
         "+  process.execPath,",
-        "+  [createLibrettoBin, \"--skip-browsers\"],",
+        '+  [createLibrettoBin, "--skip-browsers"],',
         "+  workspaceDir,",
         "+);",
         "```",
       ].join("\n");
 
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).toBe(0);
 
       const html = readRenderedHtml(title);
@@ -228,10 +210,10 @@ describe("glimpse-changes CLI", () => {
         "```",
       ].join("\n");
 
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).toBe(0);
       const output = JSON.parse(result.stdout.trim());
-      expect(output.detached).toBe(true);
+      expect(output.dryRun).toBe(true);
     });
 
     it("handles inline diff with only additions", () => {
@@ -244,7 +226,7 @@ describe("glimpse-changes CLI", () => {
         "```",
       ].join("\n");
 
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).toBe(0);
     });
 
@@ -258,7 +240,7 @@ describe("glimpse-changes CLI", () => {
         "```",
       ].join("\n");
 
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).toBe(0);
     });
 
@@ -272,7 +254,7 @@ describe("glimpse-changes CLI", () => {
         "```",
       ].join("\n");
 
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain("Invalid inline diff at line 1");
     });
@@ -293,10 +275,10 @@ describe("glimpse-changes CLI", () => {
         "```",
       ].join("\n");
 
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).toBe(0);
       const output = JSON.parse(result.stdout.trim());
-      expect(output.detached).toBe(true);
+      expect(output.dryRun).toBe(true);
     });
 
     it("does not auto-detect mixed code blocks as diffs", () => {
@@ -310,7 +292,7 @@ describe("glimpse-changes CLI", () => {
         "```",
       ].join("\n");
 
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).toBe(0);
 
       const html = readRenderedHtml(title);
@@ -322,7 +304,7 @@ describe("glimpse-changes CLI", () => {
   describe("pre-detach validation", () => {
     it("errors on invalid command diff (non-git-diff command)", () => {
       const md = "# Bad Command\n\n!`echo hello`\n";
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain(
         'Command diffs must start with "git diff"',
@@ -331,11 +313,11 @@ describe("glimpse-changes CLI", () => {
 
     it("errors on command diff that produces no valid diff output", () => {
       const md = "# Bad Diff\n\n!`git diff --no-such-flag-xxxxx`\n";
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).not.toBe(0);
     });
 
-    it("renders valid markdown with all block types before detaching", () => {
+    it("renders valid markdown with all block types", () => {
       const md = [
         "# Full Test",
         "",
@@ -358,10 +340,10 @@ describe("glimpse-changes CLI", () => {
         "```",
       ].join("\n");
 
-      const result = run([], md);
+      const result = run(["--dry-run"], md);
       expect(result.exitCode).toBe(0);
       const output = JSON.parse(result.stdout.trim());
-      expect(output.detached).toBe(true);
+      expect(output.dryRun).toBe(true);
     });
   });
 });

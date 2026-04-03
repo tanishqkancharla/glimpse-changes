@@ -35,14 +35,18 @@ Input:
 `);
 }
 function parseInput(argv) {
-  if (argv.length === 1 && (argv[0] === "--help" || argv[0] === "-h")) {
+  const flags = new Set(argv.filter((a) => a.startsWith("--") || a === "-h"));
+  const positional = argv.filter((a) => !a.startsWith("--") && a !== "-h");
+  if (flags.has("--help") || flags.has("-h")) {
     printUsage();
     process.exit(0);
   }
-  if (argv.length > 1 && argv[0] !== "--child") {
+  const dryRun = flags.has("--dry-run");
+  const isChild = flags.has("--child");
+  if (positional.length > 1 && !isChild) {
     throw new Error("Expected a single inline Markdown argument or stdin.");
   }
-  return argv[0] ?? null;
+  return { markdown: positional[0] ?? null, dryRun };
 }
 async function readStdin() {
   const chunks = [];
@@ -785,7 +789,7 @@ async function main() {
     await openWithGlimpse(documentHtml2, meta.title, meta.sessionFile);
     return;
   }
-  const inlineMarkdown = parseInput(args);
+  const { markdown: inlineMarkdown, dryRun } = parseInput(args);
   let markdown = "";
   if (inlineMarkdown !== null) {
     markdown = inlineMarkdown;
@@ -800,6 +804,10 @@ async function main() {
     process.exit(1);
   }
   const { documentHtml, title, outPath, sessionFile } = renderAndWrite(markdown, "detached");
+  if (dryRun) {
+    console.log(JSON.stringify({ dryRun: true, htmlPath: outPath, title }));
+    return;
+  }
   const metaTmp = join(tmpdir(), `glimpse-meta-${randomBytes(6).toString("hex")}.json`);
   writeFileSync(metaTmp, JSON.stringify({ htmlPath: outPath, sessionFile, title }), "utf8");
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--child", metaTmp], {

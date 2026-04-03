@@ -37,16 +37,22 @@ Input:
 }
 
 function parseInput(argv) {
-  if (argv.length === 1 && (argv[0] === "--help" || argv[0] === "-h")) {
+  const flags = new Set(argv.filter((a) => a.startsWith("--") || a === "-h"));
+  const positional = argv.filter((a) => !a.startsWith("--") && a !== "-h");
+
+  if (flags.has("--help") || flags.has("-h")) {
     printUsage();
     process.exit(0);
   }
 
-  if (argv.length > 1 && argv[0] !== "--child") {
+  const dryRun = flags.has("--dry-run");
+  const isChild = flags.has("--child");
+
+  if (positional.length > 1 && !isChild) {
     throw new Error("Expected a single inline Markdown argument or stdin.");
   }
 
-  return argv[0] ?? null;
+  return { markdown: positional[0] ?? null, dryRun };
 }
 
 async function readStdin() {
@@ -352,8 +358,7 @@ function renderCodeBlock(code, language) {
     return renderDiffBlock(wrapInlineDiffAsUnified(code));
   }
 
-  const isDiff =
-    hasUnifiedDiffStructure(lines) || isInlineDiffCandidate(lines);
+  const isDiff = hasUnifiedDiffStructure(lines) || isInlineDiffCandidate(lines);
   if (isDiff) {
     return renderDiffBlock(code);
   }
@@ -909,7 +914,7 @@ async function main() {
     return;
   }
 
-  const inlineMarkdown = parseInput(args);
+  const { markdown: inlineMarkdown, dryRun } = parseInput(args);
 
   let markdown = "";
   if (inlineMarkdown !== null) {
@@ -931,6 +936,11 @@ async function main() {
     markdown,
     "detached",
   );
+
+  if (dryRun) {
+    console.log(JSON.stringify({ dryRun: true, htmlPath: outPath, title }));
+    return;
+  }
 
   // Write metadata to a temp file and spawn a detached child to open Glimpse.
   const metaTmp = join(
