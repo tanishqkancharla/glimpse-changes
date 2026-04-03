@@ -2,6 +2,9 @@
   "name": "glimpse-changes",
   "version": "0.6.0",
   "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
   "bin": {
     "glimpse-changes": "bin/glimpse-changes.js"
   },
@@ -10,6 +13,11 @@
     "assets",
     "skills"
   ],
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  },
   "scripts": {
     "build": "bun build scripts/render-md.ts --target=node --outfile=bin/glimpse-changes.js --external glimpseui && sed -i '' '1s|.*|#!/usr/bin/env node|' bin/glimpse-changes.js",
     "test": "vitest run"
