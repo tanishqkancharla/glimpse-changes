@@ -324,6 +324,7 @@ function renderMarkdown(markdown) {
   const html = [];
   const headings = [];
   let index = 0;
+  let blockIndex = 0;
   const isBlockBoundary = (line) => line.trim() === "" || /^#{1,6}\s+/.test(line) || /^(`{3,}|~{3,})/.test(line) || /^!\`[^`]+\`\s*$/.test(line.trim()) || /^>\s?/.test(line) || /^[-*+]\s+/.test(line) || /^\d+\.\s+/.test(line) || /^([-*_])\1{2,}\s*$/.test(line) || /^\|(.+)\|/.test(line.trim());
   while (index < lines.length) {
     const line = lines[index];
@@ -339,7 +340,7 @@ function renderMarkdown(markdown) {
       const id = slugify(text);
       if (level <= 3)
         headings.push({ level, text, id });
-      html.push(`<h${level} id="${id}">${parseInline(text)}</h${level}>`);
+      html.push(`<h${level} id="${id}" data-block-index="${blockIndex++}">${parseInline(text)}</h${level}>`);
       index += 1;
       continue;
     }
@@ -375,7 +376,7 @@ function renderMarkdown(markdown) {
         quoteLines.push(lines[index].replace(/^>\s?/, ""));
         index += 1;
       }
-      html.push(`<blockquote>${quoteLines.map((quoteLine) => parseInline(quoteLine)).join("<br />")}</blockquote>`);
+      html.push(`<blockquote data-block-index="${blockIndex++}">${quoteLines.map((quoteLine) => parseInline(quoteLine)).join("<br />")}</blockquote>`);
       continue;
     }
     if (/^[-*+]\s+/.test(line)) {
@@ -384,7 +385,7 @@ function renderMarkdown(markdown) {
         items.push(lines[index].replace(/^[-*+]\s+/, ""));
         index += 1;
       }
-      html.push(`<ul>${items.map((item) => `<li>${parseInline(item)}</li>`).join("")}</ul>`);
+      html.push(`<ul>${items.map((item) => `<li data-block-index="${blockIndex++}">${parseInline(item)}</li>`).join("")}</ul>`);
       continue;
     }
     if (/^\d+\.\s+/.test(line)) {
@@ -393,7 +394,7 @@ function renderMarkdown(markdown) {
         items.push(lines[index].replace(/^\d+\.\s+/, ""));
         index += 1;
       }
-      html.push(`<ol>${items.map((item) => `<li>${parseInline(item)}</li>`).join("")}</ol>`);
+      html.push(`<ol>${items.map((item) => `<li data-block-index="${blockIndex++}">${parseInline(item)}</li>`).join("")}</ol>`);
       continue;
     }
     if (/^\|(.+)\|/.test(trimmed) && index + 1 < lines.length && /^\|[\s:]*-+[\s:]*/.test(lines[index + 1].trim())) {
@@ -430,7 +431,7 @@ function renderMarkdown(markdown) {
       paragraph.push(lines[index].trim());
       index += 1;
     }
-    html.push(`<p>${parseInline(paragraph.join(" "))}</p>`);
+    html.push(`<p data-block-index="${blockIndex++}">${parseInline(paragraph.join(" "))}</p>`);
   }
   return { html: html.join(`
 `), headings };
@@ -466,8 +467,12 @@ function getEmbeddedCritiqueTheme() {
 function loadCssAssets() {
   return {
     baseCss: readFileSync(join(assetsDir, "critique-base.css"), "utf8"),
-    markdownCss: readFileSync(join(assetsDir, "critique-markdown.css"), "utf8")
+    markdownCss: readFileSync(join(assetsDir, "critique-markdown.css"), "utf8"),
+    annotationsCss: readFileSync(join(assetsDir, "annotations.css"), "utf8")
   };
+}
+function loadAnnotationsScript() {
+  return readFileSync(join(assetsDir, "annotations.js"), "utf8");
 }
 function loadFontFaceCss() {
   const fontPath = join(assetsDir, "jetbrains-mono-nerd.woff2");
@@ -676,10 +681,12 @@ try {
 </script>`;
 }
 function renderDocument({ bodyHtml, title, sourceLabel }) {
-  const { baseCss, markdownCss } = loadCssAssets();
+  const { baseCss, markdownCss, annotationsCss } = loadCssAssets();
+  const annotationsScript = loadAnnotationsScript();
   const fontFaceCss = loadFontFaceCss();
   const diffBootScript = createDiffBootScript(DEFAULT_DIFFS_MODULE_URL, DEFAULT_DIFFS_SSR_MODULE_URL);
   const theme = getEmbeddedCritiqueTheme();
+  const checkmarkSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.75 12.75L10 15.25L16.25 8.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -718,20 +725,59 @@ function renderDocument({ bodyHtml, title, sourceLabel }) {
 ${fontFaceCss}
 ${baseCss}
 ${markdownCss}
+${annotationsCss}
+
+      .done-button {
+        position: fixed;
+        top: 12px;
+        right: 16px;
+        z-index: 9999;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      }
+      .done-button:hover {
+        background: var(--panel);
+        border-color: var(--border-active);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+      }
+      .done-button:active {
+        background: var(--element);
+      }
+      .done-button svg {
+        flex-shrink: 0;
+      }
     </style>
   </head>
   <body data-diff-style="split">
-    <div id="content">
-      <div class="review-shell">
-        <main class="markdown-body">
-          ${bodyHtml}
-        </main>
-        <footer class="review-footer">
-          <p class="review-source">${escapeHtml(sourceLabel)}</p>
-        </footer>
+    <button class="done-button" title="Close window">${checkmarkSvg}Done</button>
+    <button class="comment-trigger">\uD83D\uDCAC Comment</button>
+    <div id="layout">
+      <div id="content">
+        <div class="review-shell">
+          <main class="markdown-body">
+            ${bodyHtml}
+          </main>
+          <footer class="review-footer">
+            <p class="review-source">${escapeHtml(sourceLabel)}</p>
+          </footer>
+        </div>
       </div>
+      <div id="comments-sidebar"></div>
     </div>
 ${diffBootScript}
+    <script>${annotationsScript}</script>
   </body>
 </html>`;
 }
@@ -742,10 +788,13 @@ async function openWithGlimpse(html, title, sessionFile) {
     title,
     openLinks: true
   });
+  let doneData = null;
   win.on("message", (data) => {
     const line = JSON.stringify({ ...data, ts: Date.now() }) + `
 `;
     appendFileSync(sessionFile, line, "utf8");
+    if (data.action === "done")
+      doneData = data;
   });
   const closedPromise = new Promise((resolvePromise) => {
     win.once("closed", resolvePromise);
@@ -758,9 +807,18 @@ async function openWithGlimpse(html, title, sessionFile) {
     })
   ]);
   if (firstEvent === "closed") {
+    console.log(JSON.stringify({ status: "dismissed" }));
     process.exit(0);
   }
   await closedPromise;
+  if (doneData) {
+    console.log(JSON.stringify({
+      status: "done",
+      annotations: doneData.annotations || []
+    }));
+  } else {
+    console.log(JSON.stringify({ status: "dismissed" }));
+  }
   process.exit(0);
 }
 function renderAndWrite(markdown, sourceLabel) {

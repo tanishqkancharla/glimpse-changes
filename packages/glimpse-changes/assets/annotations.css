@@ -1,0 +1,242 @@
+/* ── Two-column layout: content + comments sidebar ── */
+
+#layout {
+  display: grid;
+  grid-template-columns: 1fr var(--sidebar-width, 0px);
+  min-height: 100vh;
+  transition: grid-template-columns 0.2s ease;
+}
+
+body.has-comments #layout,
+body.is-drafting #layout {
+  --sidebar-width: 300px;
+}
+
+#content {
+  min-width: 0;
+}
+
+#comments-sidebar {
+  position: relative;
+  width: var(--sidebar-width, 0px);
+  overflow: hidden;
+  border-left: 1px solid transparent;
+  transition:
+    width 0.2s ease,
+    border-color 0.2s ease;
+}
+
+body.has-comments #comments-sidebar,
+body.is-drafting #comments-sidebar {
+  border-left-color: var(--border);
+  overflow-y: auto;
+}
+
+/* ── Comment button (appears on text selection) ── */
+
+.comment-trigger {
+  position: absolute;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.comment-trigger:hover {
+  color: var(--text);
+  border-color: var(--border-active);
+}
+
+.comment-trigger.visible {
+  display: inline-flex;
+}
+
+/* ── Highlight marks ── */
+
+mark.annotation-highlight {
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  border-bottom: 2px solid var(--primary);
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0;
+}
+
+mark.annotation-highlight:hover,
+mark.annotation-highlight.active {
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+/* Diff line highlight — whole row background */
+[data-annotation-line] {
+  background: color-mix(in srgb, var(--primary) 10%, transparent) !important;
+  outline: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  outline-offset: -1px;
+}
+
+/* ── Sidebar comment cards ── */
+
+.comment-card {
+  position: relative;
+  margin: 8px 8px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 12px;
+  line-height: 1.5;
+  transition: border-color 0.15s;
+}
+
+.comment-card:last-child {
+  margin-bottom: 8px;
+}
+
+.comment-card.active {
+  border-color: var(--border-active);
+  box-shadow: 0 0 0 1px var(--border-active);
+}
+
+.comment-card-context {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment-card-text {
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.comment-card-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: none;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.comment-card:hover .comment-card-delete {
+  display: inline-flex;
+}
+
+.comment-card-delete:hover {
+  background: var(--element);
+  color: var(--diff-remove);
+}
+
+/* ── Draft input (in sidebar) ── */
+
+.comment-draft {
+  margin: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-active);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 0 0 1px var(--border-active);
+}
+
+.comment-draft-context {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment-draft textarea {
+  display: block;
+  width: 100%;
+  min-height: 60px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.comment-draft textarea:focus {
+  outline: none;
+  border-color: var(--border-active);
+}
+
+.comment-draft-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.comment-draft-actions button {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.comment-draft-actions .btn-cancel {
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.comment-draft-actions .btn-cancel:hover {
+  color: var(--text);
+}
+
+.comment-draft-actions .btn-save {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.comment-draft-actions .btn-save:hover {
+  opacity: 0.9;
+}
+
+/* ── Done button badge ── */
+
+.done-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}

@@ -391,6 +391,7 @@ function renderMarkdown(markdown) {
   const html = [];
   const headings = [];
   let index = 0;
+  let blockIndex = 0;
 
   const isBlockBoundary = (line) =>
     line.trim() === "" ||
@@ -418,7 +419,7 @@ function renderMarkdown(markdown) {
       const text = headingMatch[2].trim();
       const id = slugify(text);
       if (level <= 3) headings.push({ level, text, id });
-      html.push(`<h${level} id="${id}">${parseInline(text)}</h${level}>`);
+      html.push(`<h${level} id="${id}" data-block-index="${blockIndex++}">${parseInline(text)}</h${level}>`);
       index += 1;
       continue;
     }
@@ -460,7 +461,7 @@ function renderMarkdown(markdown) {
         index += 1;
       }
       html.push(
-        `<blockquote>${quoteLines.map((quoteLine) => parseInline(quoteLine)).join("<br />")}</blockquote>`,
+        `<blockquote data-block-index="${blockIndex++}">${quoteLines.map((quoteLine) => parseInline(quoteLine)).join("<br />")}</blockquote>`,
       );
       continue;
     }
@@ -472,7 +473,7 @@ function renderMarkdown(markdown) {
         index += 1;
       }
       html.push(
-        `<ul>${items.map((item) => `<li>${parseInline(item)}</li>`).join("")}</ul>`,
+        `<ul>${items.map((item) => `<li data-block-index="${blockIndex++}">${parseInline(item)}</li>`).join("")}</ul>`,
       );
       continue;
     }
@@ -484,7 +485,7 @@ function renderMarkdown(markdown) {
         index += 1;
       }
       html.push(
-        `<ol>${items.map((item) => `<li>${parseInline(item)}</li>`).join("")}</ol>`,
+        `<ol>${items.map((item) => `<li data-block-index="${blockIndex++}">${parseInline(item)}</li>`).join("")}</ol>`,
       );
       continue;
     }
@@ -532,7 +533,7 @@ function renderMarkdown(markdown) {
       paragraph.push(lines[index].trim());
       index += 1;
     }
-    html.push(`<p>${parseInline(paragraph.join(" "))}</p>`);
+    html.push(`<p data-block-index="${blockIndex++}">${parseInline(paragraph.join(" "))}</p>`);
   }
 
   return { html: html.join("\n"), headings };
@@ -571,7 +572,12 @@ function loadCssAssets() {
   return {
     baseCss: readFileSync(join(assetsDir, "critique-base.css"), "utf8"),
     markdownCss: readFileSync(join(assetsDir, "critique-markdown.css"), "utf8"),
+    annotationsCss: readFileSync(join(assetsDir, "annotations.css"), "utf8"),
   };
+}
+
+function loadAnnotationsScript() {
+  return readFileSync(join(assetsDir, "annotations.js"), "utf8");
 }
 
 function loadFontFaceCss() {
@@ -782,7 +788,8 @@ try {
 }
 
 function renderDocument({ bodyHtml, title, sourceLabel }) {
-  const { baseCss, markdownCss } = loadCssAssets();
+  const { baseCss, markdownCss, annotationsCss } = loadCssAssets();
+  const annotationsScript = loadAnnotationsScript();
   const fontFaceCss = loadFontFaceCss();
   const diffBootScript = createDiffBootScript(
     DEFAULT_DIFFS_MODULE_URL,
@@ -830,6 +837,7 @@ function renderDocument({ bodyHtml, title, sourceLabel }) {
 ${fontFaceCss}
 ${baseCss}
 ${markdownCss}
+${annotationsCss}
 
       .done-button {
         position: fixed;
@@ -865,18 +873,23 @@ ${markdownCss}
     </style>
   </head>
   <body data-diff-style="split">
-    <button class="done-button" onclick="window.glimpse && (window.glimpse.send({action:'done'}), window.glimpse.close())" title="Close window">${checkmarkSvg}Done</button>
-    <div id="content">
-      <div class="review-shell">
-        <main class="markdown-body">
-          ${bodyHtml}
-        </main>
-        <footer class="review-footer">
-          <p class="review-source">${escapeHtml(sourceLabel)}</p>
-        </footer>
+    <button class="done-button" title="Close window">${checkmarkSvg}Done</button>
+    <button class="comment-trigger">💬 Comment</button>
+    <div id="layout">
+      <div id="content">
+        <div class="review-shell">
+          <main class="markdown-body">
+            ${bodyHtml}
+          </main>
+          <footer class="review-footer">
+            <p class="review-source">${escapeHtml(sourceLabel)}</p>
+          </footer>
+        </div>
       </div>
+      <div id="comments-sidebar"></div>
     </div>
 ${diffBootScript}
+    <script>${annotationsScript}</script>
   </body>
 </html>`;
 }
@@ -889,12 +902,12 @@ async function openWithGlimpse(html, title, sessionFile) {
     openLinks: true,
   });
 
-  let doneClicked = false;
+  let doneData = null;
 
   win.on("message", (data) => {
     const line = JSON.stringify({ ...data, ts: Date.now() }) + "\n";
     appendFileSync(sessionFile, line, "utf8");
-    if (data.action === "done") doneClicked = true;
+    if (data.action === "done") doneData = data;
   });
 
   const closedPromise = new Promise((resolvePromise) => {
@@ -910,12 +923,19 @@ async function openWithGlimpse(html, title, sessionFile) {
   ]);
 
   if (firstEvent === "closed") {
-    console.log("Window closed");
+    console.log(JSON.stringify({ status: "dismissed" }));
     process.exit(0);
   }
 
   await closedPromise;
-  console.log(doneClicked ? "User clicked Done" : "Window closed");
+  if (doneData) {
+    console.log(JSON.stringify({
+      status: "done",
+      annotations: doneData.annotations || [],
+    }));
+  } else {
+    console.log(JSON.stringify({ status: "dismissed" }));
+  }
   process.exit(0);
 }
 
