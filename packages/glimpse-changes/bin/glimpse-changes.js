@@ -2,7 +2,7 @@
 // @bun
 
 // scripts/render-md.ts
-import { execSync } from "child_process";
+import { execSync, spawn } from "child_process";
 import { randomBytes } from "crypto";
 import {
   appendFileSync,
@@ -30,7 +30,8 @@ Render Markdown into a styled HTML page and open it in a Glimpse window.
 Blocks until the window is closed.
 
 Options:
-  --dry-run   Render to file only, don't open Glimpse
+  --dry-run      Render to file only, don't open Glimpse
+  --background   Open window in background, print output file path, exit immediately
 
 Input:
   - Pass a single inline Markdown argument, or
@@ -45,10 +46,11 @@ function parseInput(argv) {
     process.exit(0);
   }
   const dryRun = flags.has("--dry-run");
+  const background = flags.has("--background");
   if (positional.length > 1) {
     throw new Error("Expected a single inline Markdown argument or stdin.");
   }
-  return { markdown: positional[0] ?? null, dryRun };
+  return { markdown: positional[0] ?? null, dryRun, background };
 }
 async function readStdin() {
   const chunks = [];
@@ -781,7 +783,32 @@ ${diffBootScript}
   </body>
 </html>`;
 }
-async function openWithGlimpse(html, title, sessionFile) {
+function formatReviewOutput(doneData) {
+  if (!doneData)
+    return "Window closed";
+  const anns = doneData.annotations || [];
+  if (anns.length === 0)
+    return "User marked done without review.";
+  const lines = ["User review:", ""];
+  for (const ann of anns) {
+    const ctx = ann.context || {};
+    let location = "";
+    if (ctx.type === "diff" && ctx.file) {
+      location = ctx.lineNumber ? ` (${ctx.file}:${ctx.lineNumber})` : ` (${ctx.file})`;
+    } else if (ctx.blockTag) {
+      location = ` (${ctx.blockTag})`;
+    }
+    const quote = (ann.selectedText || "").replace(/\n/g, `
+> `);
+    lines.push(`> ${quote}${location}`);
+    lines.push("");
+    lines.push(ann.comment);
+    lines.push("");
+  }
+  return lines.join(`
+`).trimEnd();
+}
+async function openWithGlimpse(html, title, sessionFile, outputFile) {
   const win = open(html, {
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
@@ -807,36 +834,19 @@ async function openWithGlimpse(html, title, sessionFile) {
     })
   ]);
   if (firstEvent === "closed") {
-    console.log("Window closed");
+    const result2 = "Window closed";
+    if (outputFile)
+      writeFileSync(outputFile, result2, "utf8");
+    else
+      console.log(result2);
     process.exit(0);
   }
   await closedPromise;
-  if (doneData) {
-    const anns = doneData.annotations || [];
-    if (anns.length === 0) {
-      console.log("User marked done without review.");
-    } else {
-      const lines = ["User review:", ""];
-      for (const ann of anns) {
-        const ctx = ann.context || {};
-        let location = "";
-        if (ctx.type === "diff" && ctx.file) {
-          location = ctx.lineNumber ? ` (${ctx.file}:${ctx.lineNumber})` : ` (${ctx.file})`;
-        } else if (ctx.blockTag) {
-          location = ` (${ctx.blockTag})`;
-        }
-        const quote = (ann.selectedText || "").replace(/\n/g, `
-> `);
-        lines.push(`> ${quote}${location}`);
-        lines.push("");
-        lines.push(ann.comment);
-        lines.push("");
-      }
-      console.log(lines.join(`
-`).trimEnd());
-    }
+  const result = formatReviewOutput(doneData);
+  if (outputFile) {
+    writeFileSync(outputFile, result, "utf8");
   } else {
-    console.log("Window closed");
+    console.log(result);
   }
   process.exit(0);
 }
@@ -853,9 +863,22 @@ function renderAndWrite(markdown, sourceLabel) {
   writeFileSync(sessionFile, "", "utf8");
   return { documentHtml, title, outPath, sessionFile };
 }
+async function serveMode(args) {
+  const [htmlPath, outputFile, title, sessionFile] = args;
+  if (!htmlPath || !outputFile || !title || !sessionFile) {
+    console.error("--__serve requires: <htmlPath> <outputFile> <title> <sessionFile>");
+    process.exit(1);
+  }
+  const html = readFileSync(htmlPath, "utf8");
+  await openWithGlimpse(html, title, sessionFile, outputFile);
+}
 async function main() {
   const args = process.argv.slice(2);
-  const { markdown: inlineMarkdown, dryRun } = parseInput(args);
+  if (args[0] === "--__serve") {
+    await serveMode(args.slice(1));
+    return;
+  }
+  const { markdown: inlineMarkdown, dryRun, background } = parseInput(args);
   let markdown = "";
   if (inlineMarkdown !== null) {
     markdown = inlineMarkdown;
@@ -873,6 +896,15 @@ async function main() {
   if (dryRun) {
     console.log(JSON.stringify({ dryRun: true, htmlPath: outPath, title }));
     return;
+  }
+  if (background) {
+    const sessionId = randomBytes(6).toString("hex");
+    const outputFile = join(tmpdir(), `glimpse-review-${sessionId}.txt`);
+    writeFileSync(outputFile, "__PENDING__", "utf8");
+    const child = spawn(process.execPath, [process.argv[1], "--__serve", outPath, outputFile, title, sessionFile], { detached: true, stdio: "ignore" });
+    child.unref();
+    console.log(`Glimpse window opened. Read ${outputFile} for user feedback.`);
+    process.exit(0);
   }
   await openWithGlimpse(documentHtml, title, sessionFile);
 }

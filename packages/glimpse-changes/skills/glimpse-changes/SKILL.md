@@ -19,7 +19,18 @@ cat report.md | npx glimpse-changes
 npx glimpse-changes "# Title\n\nContent"
 ```
 
-The CLI opens a Glimpse window and exits immediately.
+The CLI opens a Glimpse window and blocks until closed.
+
+### Background mode
+
+Use `--background` to open the window without blocking:
+
+```bash
+npx glimpse-changes --background "# Title\n\nContent"
+# prints: Glimpse window opened. Read /tmp/glimpse-review-<id>.txt for user feedback.
+```
+
+The output file contains `__PENDING__` until the user closes the window, then it contains the review text. Poll by reading the file and checking whether it still says `__PENDING__`.
 
 ## Diff blocks
 
