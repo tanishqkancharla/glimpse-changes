@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { execSync, spawn } from "node:child_process";
+import { execSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
   appendFileSync,
@@ -25,10 +25,13 @@ const DEFAULT_WIDTH = 1600;
 const DEFAULT_HEIGHT = 920;
 
 function printUsage() {
-  console.log(`render-md.mjs [markdown]
+  console.log(`glimpse-changes [options] [markdown]
 
-Render Markdown into a Critique-styled HTML page, open it in Glimpse, and use
-Diffs.com for fenced diff blocks.
+Render Markdown into a styled HTML page and open it in a Glimpse window.
+Blocks until the window is closed.
+
+Options:
+  --dry-run   Render to file only, don't open Glimpse
 
 Input:
   - Pass a single inline Markdown argument, or
@@ -46,9 +49,8 @@ function parseInput(argv) {
   }
 
   const dryRun = flags.has("--dry-run");
-  const isChild = flags.has("--child");
 
-  if (positional.length > 1 && !isChild) {
+  if (positional.length > 1) {
     throw new Error("Expected a single inline Markdown argument or stdin.");
   }
 
@@ -788,6 +790,8 @@ function renderDocument({ bodyHtml, title, sourceLabel }) {
   );
   const theme = getEmbeddedCritiqueTheme();
 
+  const checkmarkSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.75 12.75L10 15.25L16.25 8.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
+
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -826,9 +830,42 @@ function renderDocument({ bodyHtml, title, sourceLabel }) {
 ${fontFaceCss}
 ${baseCss}
 ${markdownCss}
+
+      .done-button {
+        position: fixed;
+        top: 12px;
+        right: 16px;
+        z-index: 9999;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      }
+      .done-button:hover {
+        background: var(--panel);
+        border-color: var(--border-active);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+      }
+      .done-button:active {
+        background: var(--element);
+      }
+      .done-button svg {
+        flex-shrink: 0;
+      }
     </style>
   </head>
   <body data-diff-style="split">
+    <button class="done-button" onclick="window.glimpse && (window.glimpse.send({action:'done'}), window.glimpse.close())" title="Close window">${checkmarkSvg}Done</button>
     <div id="content">
       <div class="review-shell">
         <main class="markdown-body">
@@ -852,9 +889,12 @@ async function openWithGlimpse(html, title, sessionFile) {
     openLinks: true,
   });
 
+  let doneClicked = false;
+
   win.on("message", (data) => {
     const line = JSON.stringify({ ...data, ts: Date.now() }) + "\n";
     appendFileSync(sessionFile, line, "utf8");
+    if (data.action === "done") doneClicked = true;
   });
 
   const closedPromise = new Promise((resolvePromise) => {
@@ -870,10 +910,12 @@ async function openWithGlimpse(html, title, sessionFile) {
   ]);
 
   if (firstEvent === "closed") {
+    console.log("Window closed");
     process.exit(0);
   }
 
   await closedPromise;
+  console.log(doneClicked ? "User clicked Done" : "Window closed");
   process.exit(0);
 }
 
@@ -896,24 +938,6 @@ function renderAndWrite(markdown: string, sourceLabel: string) {
 
 async function main() {
   const args = process.argv.slice(2);
-
-  // Child mode: read pre-rendered HTML and open Glimpse.
-  if (args[0] === "--child" && args[1]) {
-    const metaPath = args[1];
-    const meta = JSON.parse(readFileSync(metaPath, "utf8"));
-    const documentHtml = readFileSync(meta.htmlPath, "utf8");
-    console.log(
-      JSON.stringify({
-        htmlPath: meta.htmlPath,
-        sessionFile: meta.sessionFile,
-        title: meta.title,
-        opened: true,
-      }),
-    );
-    await openWithGlimpse(documentHtml, meta.title, meta.sessionFile);
-    return;
-  }
-
   const { markdown: inlineMarkdown, dryRun } = parseInput(args);
 
   let markdown = "";
@@ -931,10 +955,9 @@ async function main() {
     process.exit(1);
   }
 
-  // Render and validate before detaching — any errors (bad diffs, etc.) surface here.
   const { documentHtml, title, outPath, sessionFile } = renderAndWrite(
     markdown,
-    "detached",
+    "glimpse-changes",
   );
 
   if (dryRun) {
@@ -942,28 +965,7 @@ async function main() {
     return;
   }
 
-  // Write metadata to a temp file and spawn a detached child to open Glimpse.
-  const metaTmp = join(
-    tmpdir(),
-    `glimpse-meta-${randomBytes(6).toString("hex")}.json`,
-  );
-  writeFileSync(
-    metaTmp,
-    JSON.stringify({ htmlPath: outPath, sessionFile, title }),
-    "utf8",
-  );
-
-  const child = spawn(
-    process.execPath,
-    [fileURLToPath(import.meta.url), "--child", metaTmp],
-    {
-      detached: true,
-      stdio: "ignore",
-    },
-  );
-  child.unref();
-
-  console.log(JSON.stringify({ detached: true, pid: child.pid }));
+  await openWithGlimpse(documentHtml, title, sessionFile);
 }
 
 main().catch((error) => {

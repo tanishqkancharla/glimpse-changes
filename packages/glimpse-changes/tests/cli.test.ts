@@ -53,14 +53,14 @@ describe("glimpse-changes CLI", () => {
     it("prints usage and exits 0", () => {
       const result = run(["--help"]);
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("render-md.mjs");
+      expect(result.stdout).toContain("glimpse-changes");
       expect(result.stdout).toContain("Markdown");
     });
 
     it("-h also prints usage", () => {
       const result = run(["-h"]);
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("render-md.mjs");
+      expect(result.stdout).toContain("glimpse-changes");
     });
   });
 

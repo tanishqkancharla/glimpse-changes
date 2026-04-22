@@ -2,7 +2,7 @@
 // @bun
 
 // scripts/render-md.ts
-import { execSync, spawn } from "child_process";
+import { execSync } from "child_process";
 import { randomBytes } from "crypto";
 import {
   appendFileSync,
@@ -24,10 +24,13 @@ var DEFAULT_DIFFS_SSR_MODULE_URL = "https://esm.sh/@pierre/diffs@1.1.1/ssr?bundl
 var DEFAULT_WIDTH = 1600;
 var DEFAULT_HEIGHT = 920;
 function printUsage() {
-  console.log(`render-md.mjs [markdown]
+  console.log(`glimpse-changes [options] [markdown]
 
-Render Markdown into a Critique-styled HTML page, open it in Glimpse, and use
-Diffs.com for fenced diff blocks.
+Render Markdown into a styled HTML page and open it in a Glimpse window.
+Blocks until the window is closed.
+
+Options:
+  --dry-run   Render to file only, don't open Glimpse
 
 Input:
   - Pass a single inline Markdown argument, or
@@ -42,8 +45,7 @@ function parseInput(argv) {
     process.exit(0);
   }
   const dryRun = flags.has("--dry-run");
-  const isChild = flags.has("--child");
-  if (positional.length > 1 && !isChild) {
+  if (positional.length > 1) {
     throw new Error("Expected a single inline Markdown argument or stdin.");
   }
   return { markdown: positional[0] ?? null, dryRun };
@@ -776,19 +778,6 @@ function renderAndWrite(markdown, sourceLabel) {
 }
 async function main() {
   const args = process.argv.slice(2);
-  if (args[0] === "--child" && args[1]) {
-    const metaPath = args[1];
-    const meta = JSON.parse(readFileSync(metaPath, "utf8"));
-    const documentHtml2 = readFileSync(meta.htmlPath, "utf8");
-    console.log(JSON.stringify({
-      htmlPath: meta.htmlPath,
-      sessionFile: meta.sessionFile,
-      title: meta.title,
-      opened: true
-    }));
-    await openWithGlimpse(documentHtml2, meta.title, meta.sessionFile);
-    return;
-  }
   const { markdown: inlineMarkdown, dryRun } = parseInput(args);
   let markdown = "";
   if (inlineMarkdown !== null) {
@@ -803,19 +792,12 @@ async function main() {
     console.error("No markdown content provided.");
     process.exit(1);
   }
-  const { documentHtml, title, outPath, sessionFile } = renderAndWrite(markdown, "detached");
+  const { documentHtml, title, outPath, sessionFile } = renderAndWrite(markdown, "glimpse-changes");
   if (dryRun) {
     console.log(JSON.stringify({ dryRun: true, htmlPath: outPath, title }));
     return;
   }
-  const metaTmp = join(tmpdir(), `glimpse-meta-${randomBytes(6).toString("hex")}.json`);
-  writeFileSync(metaTmp, JSON.stringify({ htmlPath: outPath, sessionFile, title }), "utf8");
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--child", metaTmp], {
-    detached: true,
-    stdio: "ignore"
-  });
-  child.unref();
-  console.log(JSON.stringify({ detached: true, pid: child.pid }));
+  await openWithGlimpse(documentHtml, title, sessionFile);
 }
 main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
