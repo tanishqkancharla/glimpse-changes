@@ -205,7 +205,7 @@
 }
 
 .markdown-body .diff-shell {
-  max-width: calc(100vw - 32px);
+  max-width: calc(100cqw - 32px);
   position: relative;
   left: 50%;
   transform: translateX(-50%);
@@ -214,12 +214,12 @@
 }
 
 body[data-diff-style="split"] .diff-shell {
-  width: min(var(--diff-split-shell-width), calc(100vw - 32px));
+  width: min(var(--diff-split-shell-width), calc(100cqw - 32px));
 }
 
 body[data-diff-style="unified"] .diff-shell {
-  width: min(var(--diff-unified-width), calc(100vw - 32px));
-  max-width: min(var(--diff-unified-width), calc(100vw - 32px));
+  width: min(var(--diff-unified-width), calc(100cqw - 32px));
+  max-width: min(var(--diff-unified-width), calc(100cqw - 32px));
   left: auto;
   transform: none;
   margin-left: auto;

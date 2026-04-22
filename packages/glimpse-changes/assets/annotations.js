@@ -67,17 +67,21 @@
     document.body.classList.toggle("is-drafting", draft !== null);
   }
 
-  function updateDoneBadge() {
-    let badge = doneButton?.querySelector(".done-badge");
+  function updateDoneButton() {
+    if (!doneButton) return;
+    const label = doneButton.querySelector(".done-label");
+    let badge = doneButton.querySelector(".done-badge");
     if (annotations.length > 0) {
+      if (label) label.textContent = "Review";
       if (!badge) {
         badge = document.createElement("span");
         badge.className = "done-badge";
         doneButton.appendChild(badge);
       }
       badge.textContent = annotations.length;
-    } else if (badge) {
-      badge.remove();
+    } else {
+      if (label) label.textContent = "Done";
+      if (badge) badge.remove();
     }
   }
 
@@ -172,7 +176,7 @@
     }
 
     updateBodyClasses();
-    updateDoneBadge();
+    updateDoneButton();
   }
 
   function deleteAnnotation(id) {
@@ -296,9 +300,9 @@
     const range = sel.getRangeAt(0);
     const rect = range.getBoundingClientRect();
 
-    // Position trigger above the selection, centered
-    const x = rect.left + rect.width / 2 - 40 + window.scrollX;
-    const y = rect.top - 32 + window.scrollY;
+    // Position trigger to the right of the selection
+    const x = rect.right + 6 + window.scrollX;
+    const y = rect.top + (rect.height / 2) - 14 + window.scrollY;
     showTrigger(x, y);
   });
 

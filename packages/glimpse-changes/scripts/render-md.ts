@@ -873,8 +873,7 @@ ${annotationsCss}
     </style>
   </head>
   <body data-diff-style="split">
-    <button class="done-button" title="Close window">${checkmarkSvg}Done</button>
-    <button class="comment-trigger">💬 Comment</button>
+    <button class="comment-trigger"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 18.25C15.866 18.25 19.25 16.1552 19.25 11.5C19.25 6.84483 15.866 4.75 12 4.75C8.13401 4.75 4.75 6.84483 4.75 11.5C4.75 13.2675 5.23783 14.6659 6.05464 15.7206C6.29358 16.0292 6.38851 16.4392 6.2231 16.7926C6.12235 17.0079 6.01633 17.2134 5.90792 17.4082C5.45369 18.2242 6.07951 19.4131 6.99526 19.2297C8.0113 19.0263 9.14752 18.722 10.0954 18.2738C10.2933 18.1803 10.5134 18.1439 10.7305 18.1714C11.145 18.224 11.5695 18.25 12 18.25Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9.75 12H14.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M12 9.75V14.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
     <div id="layout">
       <div id="content">
         <div class="review-shell">
@@ -888,6 +887,7 @@ ${annotationsCss}
       </div>
       <div id="comments-sidebar"></div>
     </div>
+    <button class="done-button" title="Close window">${checkmarkSvg}<span class="done-label">Done</span></button>
 ${diffBootScript}
     <script>${annotationsScript}</script>
   </body>
@@ -923,18 +923,35 @@ async function openWithGlimpse(html, title, sessionFile) {
   ]);
 
   if (firstEvent === "closed") {
-    console.log(JSON.stringify({ status: "dismissed" }));
+    console.log("Window closed");
     process.exit(0);
   }
 
   await closedPromise;
   if (doneData) {
-    console.log(JSON.stringify({
-      status: "done",
-      annotations: doneData.annotations || [],
-    }));
+    const anns = doneData.annotations || [];
+    if (anns.length === 0) {
+      console.log("User marked done without review.");
+    } else {
+      const lines = ["User review:", ""];
+      for (const ann of anns) {
+        const ctx = ann.context || {};
+        let location = "";
+        if (ctx.type === "diff" && ctx.file) {
+          location = ctx.lineNumber ? ` (${ctx.file}:${ctx.lineNumber})` : ` (${ctx.file})`;
+        } else if (ctx.blockTag) {
+          location = ` (${ctx.blockTag})`;
+        }
+        const quote = (ann.selectedText || "").replace(/\n/g, "\n> ");
+        lines.push(`> ${quote}${location}`);
+        lines.push("");
+        lines.push(ann.comment);
+        lines.push("");
+      }
+      console.log(lines.join("\n").trimEnd());
+    }
   } else {
-    console.log(JSON.stringify({ status: "dismissed" }));
+    console.log("Window closed");
   }
   process.exit(0);
 }
