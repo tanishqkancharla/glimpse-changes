@@ -3,12 +3,69 @@ name: glimpse-changes
 description: Create a visual explanation of the current session diff as a single HTML page and show it in a native Glimpse window. Use when the user wants a visual walkthrough of local code changes instead of a plain text diff.
 metadata:
   author: tanishqkancharla
-  version: "1.8.0"
+  version: "1.8.1"
 ---
 
 # Glimpse Changes
 
 Render a Markdown document in a native Glimpse window with syntax-highlighted code and rich diff rendering.
+
+## Default change-doc format
+
+When creating a change-doc for Glimpse, use this structure by default:
+
+1. A short, specific title.
+2. A `## Summary` section with a concise bulleted list of the main changes.
+3. One section per logical change, each with:
+   - a clear section title
+   - a short explanation of what changed and why
+   - a diff, preferably a live `git diff` command block
+
+Prefer grouping by logical concern instead of by file whenever possible.
+Lead with rationale, then show the diff that supports it.
+
+Template:
+
+````md
+# <Title>
+
+## Summary
+- Change 1
+- Change 2
+- Change 3
+
+## <Section title>
+What changed and why it matters.
+
+!`git diff -- path/to/file`
+
+## <Another section title>
+More rationale for this group of changes.
+
+```diff
+diff --git a/foo.ts b/foo.ts
+...
+```
+````
+
+Example:
+
+```bash
+cat <<'EOF' | npx glimpse-changes -
+# Improve review flow messaging
+
+## Summary
+- clarify the default blocking review flow
+- document when to use background mode
+- add stronger guidance for user-driven review sessions
+
+## Clarify the default review flow
+Explain that agents should usually open the review, ask the user to inspect it,
+and wait until the user says they are done.
+
+!`git diff -- packages/glimpse-changes/skills/glimpse-changes/SKILL.md`
+EOF
+```
 
 ## Usage
 
@@ -133,7 +190,7 @@ const x = 1;
 ## Typical workflow
 
 1. Inspect changes with `git diff`, `git status`, etc.
-2. Write a markdown explanation of the changes.
+2. Write the change-doc using the default format: title, summary bullets, then rationale-plus-diff sections.
 3. Pipe it to `npx glimpse-changes`.
 4. Ask the user to review it and tell you when they are done.
 5. Only use `--background` and review-file polling for explicitly asynchronous workflows.

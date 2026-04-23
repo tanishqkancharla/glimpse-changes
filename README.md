@@ -17,6 +17,62 @@ A CLI tool that renders Markdown with inline diffs into a native [Glimpse](https
 npx skills add tanishqkancharla/glimpse-changes
 ```
 
+## Default change-doc format
+
+When using Glimpse Changes for a review or walkthrough, structure the
+change-doc like this by default:
+
+1. A short, specific title
+2. A `## Summary` section with concise bullets
+3. One section per logical change, each with:
+   - a clear heading
+   - a short rationale
+   - a diff, ideally a live `git diff` command block
+
+Prefer grouping by logical concern instead of file-by-file when possible.
+Lead with rationale, then show the diff.
+
+````markdown
+# <Title>
+
+## Summary
+- Change 1
+- Change 2
+- Change 3
+
+## <Section title>
+What changed and why it matters.
+
+!`git diff -- path/to/file`
+
+## <Another section title>
+More rationale for this group of changes.
+
+```diff
+diff --git a/foo.ts b/foo.ts
+...
+```
+````
+
+Example:
+
+```bash
+cat <<'EOF' | npx glimpse-changes -
+# Improve review flow messaging
+
+## Summary
+- clarify the default blocking review flow
+- document when to use background mode
+- add stronger guidance for user-driven review sessions
+
+## Clarify the default review flow
+Explain that agents should usually open the review, ask the user to inspect it,
+and wait until the user says they are done.
+
+!`git diff -- packages/glimpse-changes/skills/glimpse-changes/SKILL.md`
+EOF
+```
+
 ## Usage
 
 ```bash
