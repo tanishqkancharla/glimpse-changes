@@ -82,6 +82,14 @@ describe("glimpse-changes CLI", () => {
       expect(output.dryRun).toBe(true);
     });
 
+    it("accepts markdown via stdin when passed '-'", () => {
+      const result = run(["--dry-run", "-"], "# From Explicit Stdin\n\nBody");
+      expect(result.exitCode).toBe(0);
+      const output = JSON.parse(result.stdout.trim());
+      expect(output.dryRun).toBe(true);
+      expect(output.title).toBe("From Explicit Stdin");
+    });
+
     it("handles complex markdown via stdin", () => {
       const md = [
         "# Code Review",

@@ -20,11 +20,21 @@ npx skills add tanishqkancharla/glimpse-changes
 ## Usage
 
 ```bash
-# Inline Markdown argument
-bun scripts/render-md.ts "# My Report\n\nSome content"
-
 # Pipe from a file
 cat /tmp/session-diff-report.md | bun scripts/render-md.ts
+
+# Force stdin with '-'
+cat /tmp/session-diff-report.md | bun scripts/render-md.ts -
+
+# Heredoc for content with command diffs
+cat <<'EOF' | bun scripts/render-md.ts -
+# My Report
+
+!`git diff -- src/auth.ts`
+EOF
+
+# Inline Markdown argument (best for simple content without command diffs)
+bun scripts/render-md.ts "# My Report\n\nSome content"
 ```
 
 ### Inline command diffs
@@ -36,6 +46,9 @@ In your Markdown, use the `` !`<command>` `` syntax to execute a shell command a
 
 !`git diff -- src/auth.ts`
 ````
+
+Prefer piping or heredocs for command diffs instead of shell-quoted inline
+arguments. That avoids quoting issues with the embedded backticks.
 
 ### Fenced diff blocks
 

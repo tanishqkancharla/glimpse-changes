@@ -35,8 +35,13 @@ Options:
   --background   Open window in background, print output file path, exit immediately
 
 Input:
-  - Pass a single inline Markdown argument, or
-  - pipe Markdown over stdin.
+  - Prefer piping Markdown over stdin (for example with a heredoc), or
+  - pass a single inline Markdown argument for simple content.
+
+Tips:
+  - Use '-' to force reading from stdin: npx glimpse-changes -
+  - When using !\`git diff ...\` command diffs, prefer stdin/heredocs over
+    shell-quoted inline arguments.
 `);
 }
 
@@ -56,7 +61,15 @@ function parseInput(argv) {
     throw new Error("Expected a single inline Markdown argument or stdin.");
   }
 
-  return { markdown: positional[0] ?? null, dryRun, background };
+  const input = positional[0] ?? null;
+  const readFromStdin = input === "-";
+
+  return {
+    markdown: readFromStdin ? null : input,
+    readFromStdin,
+    dryRun,
+    background,
+  };
 }
 
 async function readStdin() {
@@ -897,10 +910,8 @@ ${diffBootScript}
 }
 
 function formatReviewOutput(doneData) {
-  if (!doneData) return "Window closed";
-
-  const anns = doneData.annotations || [];
-  if (anns.length === 0) return "User marked done without review.";
+  const anns = doneData?.annotations || [];
+  if (anns.length === 0) return "Window closed. User marked done without review.";
 
   const lines = ["User review:", ""];
   for (const ann of anns) {
@@ -949,7 +960,7 @@ async function openWithGlimpse(html, title, sessionFile, outputFile?: string) {
   ]);
 
   if (firstEvent === "closed") {
-    const result = "Window closed";
+    const result = "Window closed. User marked done without review.";
     if (outputFile) writeFileSync(outputFile, result, "utf8");
     else console.log(result);
     process.exit(0);
@@ -1003,10 +1014,13 @@ async function main() {
     return;
   }
 
-  const { markdown: inlineMarkdown, dryRun, background } = parseInput(args);
+  const { markdown: inlineMarkdown, readFromStdin, dryRun, background } =
+    parseInput(args);
 
   let markdown = "";
-  if (inlineMarkdown !== null) {
+  if (readFromStdin) {
+    markdown = await readStdin();
+  } else if (inlineMarkdown !== null) {
     markdown = inlineMarkdown;
   } else if (!process.stdin.isTTY) {
     markdown = await readStdin();

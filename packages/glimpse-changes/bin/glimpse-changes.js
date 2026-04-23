@@ -34,8 +34,13 @@ Options:
   --background   Open window in background, print output file path, exit immediately
 
 Input:
-  - Pass a single inline Markdown argument, or
-  - pipe Markdown over stdin.
+  - Prefer piping Markdown over stdin (for example with a heredoc), or
+  - pass a single inline Markdown argument for simple content.
+
+Tips:
+  - Use '-' to force reading from stdin: npx glimpse-changes -
+  - When using !\`git diff ...\` command diffs, prefer stdin/heredocs over
+    shell-quoted inline arguments.
 `);
 }
 function parseInput(argv) {
@@ -50,7 +55,14 @@ function parseInput(argv) {
   if (positional.length > 1) {
     throw new Error("Expected a single inline Markdown argument or stdin.");
   }
-  return { markdown: positional[0] ?? null, dryRun, background };
+  const input = positional[0] ?? null;
+  const readFromStdin = input === "-";
+  return {
+    markdown: readFromStdin ? null : input,
+    readFromStdin,
+    dryRun,
+    background
+  };
 }
 async function readStdin() {
   const chunks = [];
@@ -784,11 +796,9 @@ ${diffBootScript}
 </html>`;
 }
 function formatReviewOutput(doneData) {
-  if (!doneData)
-    return "Window closed";
-  const anns = doneData.annotations || [];
+  const anns = doneData?.annotations || [];
   if (anns.length === 0)
-    return "User marked done without review.";
+    return "Window closed. User marked done without review.";
   const lines = ["User review:", ""];
   for (const ann of anns) {
     const ctx = ann.context || {};
@@ -834,7 +844,7 @@ async function openWithGlimpse(html, title, sessionFile, outputFile) {
     })
   ]);
   if (firstEvent === "closed") {
-    const result2 = "Window closed";
+    const result2 = "Window closed. User marked done without review.";
     if (outputFile)
       writeFileSync(outputFile, result2, "utf8");
     else
@@ -878,9 +888,11 @@ async function main() {
     await serveMode(args.slice(1));
     return;
   }
-  const { markdown: inlineMarkdown, dryRun, background } = parseInput(args);
+  const { markdown: inlineMarkdown, readFromStdin, dryRun, background } = parseInput(args);
   let markdown = "";
-  if (inlineMarkdown !== null) {
+  if (readFromStdin) {
+    markdown = await readStdin();
+  } else if (inlineMarkdown !== null) {
     markdown = inlineMarkdown;
   } else if (!process.stdin.isTTY) {
     markdown = await readStdin();

@@ -3,7 +3,7 @@ name: glimpse-changes
 description: Create a visual explanation of the current session diff as a single HTML page and show it in a native Glimpse window. Use when the user wants a visual walkthrough of local code changes instead of a plain text diff.
 metadata:
   author: tanishqkancharla
-  version: "1.4.0"
+  version: "1.8.0"
 ---
 
 # Glimpse Changes
@@ -12,14 +12,56 @@ Render a Markdown document in a native Glimpse window with syntax-highlighted co
 
 ## Usage
 
-Pipe markdown or pass it as an argument:
+Prefer piping markdown over stdin. This avoids shell-quoting issues, especially
+for command diffs that use backticks.
 
 ```bash
 cat report.md | npx glimpse-changes
+cat report.md | npx glimpse-changes -
+
+cat <<'EOF' | npx glimpse-changes -
+# Title
+
+Content
+EOF
+```
+
+You can still pass a single inline markdown argument for simple content:
+
+```bash
 npx glimpse-changes "# Title\n\nContent"
 ```
 
 The CLI opens a Glimpse window and blocks until closed.
+
+## Review workflow
+
+This skill is not just for rendering a nice diff view — it can also collect
+user review feedback.
+
+- Use the default blocking mode when you only need to show the content and wait.
+- In an interactive agent session, prefer a user-driven workflow: open the
+  review, ask the user to review it, and wait for them to tell you when they
+  are done.
+- Use `--background` only when you specifically want an asynchronous workflow.
+- In background mode, the CLI prints a review file path.
+- That file contains `__PENDING__` until the window is closed.
+- Once the user is done, the file contains either their review text or a
+  no-review completion message.
+
+Default interactive agent flow:
+
+1. Render the report for the user.
+2. Tell the user to review it in Glimpse.
+3. Wait for the user to say they are finished.
+4. Then continue the task.
+
+Asynchronous/background flow (only when explicitly useful):
+
+1. Render the report with `npx glimpse-changes --background -`.
+2. Capture the printed review file path.
+3. Poll that file until it is no longer `__PENDING__`.
+4. Read the review text and continue the task.
 
 ### Background mode
 
@@ -30,7 +72,7 @@ npx glimpse-changes --background "# Title\n\nContent"
 # prints: Glimpse window opened. Read /tmp/glimpse-review-<id>.txt for user feedback.
 ```
 
-The output file contains `__PENDING__` until the user closes the window, then it contains the review text. Poll by reading the file and checking whether it still says `__PENDING__`.
+The output file contains `__PENDING__` until the user closes the window, then it contains the review text. Poll by reading the file and checking whether it still says `__PENDING__`. If the user closes the window without adding review comments, the file will contain a no-review completion message.
 
 ## Diff blocks
 
@@ -38,6 +80,16 @@ The output file contains `__PENDING__` until the user closes the window, then it
 
 ```
 !`git diff -- path/to/file`
+```
+
+When using command diffs, prefer piping markdown via stdin or a heredoc:
+
+```bash
+cat <<'EOF' | npx glimpse-changes -
+## Changes
+
+!`git diff -- path/to/file`
+EOF
 ```
 
 **Full unified diffs** — paste standard `git diff` output in a `diff` fenced block:
@@ -83,5 +135,7 @@ const x = 1;
 1. Inspect changes with `git diff`, `git status`, etc.
 2. Write a markdown explanation of the changes.
 3. Pipe it to `npx glimpse-changes`.
+4. Ask the user to review it and tell you when they are done.
+5. Only use `--background` and review-file polling for explicitly asynchronous workflows.
 
-Prefer command diffs (`!`git diff ...``) over pasting raw diff content — they always reflect the current working tree.
+Prefer command diffs (`!`git diff ...``) over pasting raw diff content — they always reflect the current working tree. Prefer stdin/heredocs over inline shell-quoted arguments when command diffs are involved.
