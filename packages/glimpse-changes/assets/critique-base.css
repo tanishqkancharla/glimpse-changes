@@ -45,6 +45,7 @@ svg {
   padding: 16px;
   color: var(--text);
   font-family: "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo, "Ubuntu Mono", Consolas, monospace;
-  font-size: clamp(12px, calc((100vw - 32px) / 110), 14px);
+  font-size: 13px;
   line-height: 1.7;
+  container-type: inline-size;
 }

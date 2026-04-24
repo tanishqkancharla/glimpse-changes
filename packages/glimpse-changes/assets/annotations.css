@@ -99,7 +99,6 @@ mark.annotation-highlight.active {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
-  font-size: 12px;
   line-height: 1.5;
   transition: border-color 0.15s;
 }
@@ -118,7 +117,6 @@ mark.annotation-highlight.active {
 
 .comment-card-context {
   color: var(--muted);
-  font-size: 11px;
   margin-bottom: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -142,7 +140,6 @@ mark.annotation-highlight.active {
   border-radius: 4px;
   background: transparent;
   color: var(--muted);
-  font-size: 14px;
   line-height: 1;
   cursor: pointer;
   align-items: center;
@@ -170,7 +167,6 @@ mark.annotation-highlight.active {
 
 .comment-draft-context {
   color: var(--muted);
-  font-size: 11px;
   margin-bottom: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -187,7 +183,6 @@ mark.annotation-highlight.active {
   background: var(--panel);
   color: var(--text);
   font-family: inherit;
-  font-size: 12px;
   line-height: 1.5;
   resize: vertical;
 }
@@ -209,7 +204,6 @@ mark.annotation-highlight.active {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-family: inherit;
-  font-size: 12px;
   cursor: pointer;
 }
 
@@ -244,7 +238,6 @@ mark.annotation-highlight.active {
   border-radius: 9px;
   background: var(--primary);
   color: #fff;
-  font-size: 11px;
   font-weight: 600;
   line-height: 1;
 }

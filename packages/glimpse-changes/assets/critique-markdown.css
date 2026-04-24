@@ -12,17 +12,19 @@
   font-family:
     "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo,
     "Ubuntu Mono", Consolas, monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .review-footer {
   width: min(70ch, 100%);
-  margin: 2.55em auto 0;
+  margin: 2.55em 0 0;
 }
 
 .review-source {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
   overflow-wrap: anywhere;
 }
 
@@ -38,7 +40,6 @@
   border-radius: 999px;
   color: var(--muted);
   text-decoration: none;
-  font-size: 14px;
   background: var(--panel);
 }
 
@@ -50,7 +51,6 @@
 .markdown-body {
   width: min(70ch, 100%);
   max-width: 70ch;
-  margin: 0 auto;
 }
 
 .markdown-body h1,
@@ -261,7 +261,6 @@ body[data-diff-style="unified"] .diff-shell {
   flex: 1 1 auto;
   min-width: 0;
   color: var(--muted);
-  font-size: 12px;
   line-height: 1.7;
   white-space: nowrap;
   overflow: hidden;
@@ -277,7 +276,6 @@ body[data-diff-style="unified"] .diff-shell {
 .diffs-host {
   display: block;
   width: 100%;
-  font-size: 12px;
   max-width: 100%;
   --diffs-font-family:
     "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo,
@@ -307,7 +305,7 @@ body[data-diff-style="unified"] .diff-shell {
   --diffs-addition-base: var(--diff-add);
   --diffs-deletion-base: var(--diff-remove);
   --diffs-modified-base: var(--diff-hunk);
-  --diffs-font-size: 0.85em;
+  --diffs-font-size: 13px;
   --diffs-line-height: 1.7;
   --diffs-gap-inline: 8px;
   --diffs-gap-block: 8px;
@@ -329,7 +327,6 @@ body[data-diff-style="unified"] .diff-shell {
 
 .changes-file-header {
   color: var(--muted);
-  font-size: 12px;
   line-height: 1.7;
   white-space: nowrap;
   overflow: hidden;
@@ -345,7 +342,6 @@ body[data-diff-style="unified"] .diff-shell {
 .changes-mount .diffs-host {
   display: block;
   width: 100%;
-  font-size: 12px;
   max-width: 100%;
   --diffs-font-family:
     "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo,
@@ -375,7 +371,7 @@ body[data-diff-style="unified"] .diff-shell {
   --diffs-addition-base: var(--diff-add);
   --diffs-deletion-base: var(--diff-remove);
   --diffs-modified-base: var(--diff-hunk);
-  --diffs-font-size: 0.85em;
+  --diffs-font-size: 13px;
   --diffs-line-height: 1.7;
   --diffs-gap-inline: 8px;
   --diffs-gap-block: 8px;
@@ -388,7 +384,6 @@ body[data-diff-style="unified"] .diff-shell {
   color: var(--diff-remove);
   background: var(--diff-remove-bg);
   border-radius: 6px;
-  font-size: 12px;
 }
 
 .code-file-block {

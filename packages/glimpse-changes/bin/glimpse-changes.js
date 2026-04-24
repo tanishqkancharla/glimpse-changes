@@ -459,32 +459,64 @@ function renderMarkdown(markdown) {
   return { html: html.join(`
 `), headings };
 }
-function getEmbeddedCritiqueTheme() {
+function getLightTheme() {
   return {
-    primary: "#0550ae",
-    secondary: "#8250df",
-    accent: "#1b7c83",
-    text: "#24292f",
-    textMuted: "#57606a",
-    background: "#ffffff",
-    backgroundPanel: "#f6f8fa",
-    backgroundElement: "#f0f3f6",
-    border: "#d0d7de",
-    borderActive: "#0550ae",
-    borderSubtle: "#d8dee4",
-    diffAdded: "#116329",
+    primary: "#0044ff",
+    secondary: "#750049",
+    accent: "#0044ff",
+    text: "#000000",
+    textMuted: "rgba(0,0,0,0.47)",
+    background: "#fdfdf8",
+    backgroundPanel: "#f5f5f0",
+    backgroundElement: "#ebebdf",
+    border: "#d0d0c8",
+    borderActive: "#0044ff",
+    borderSubtle: "#ddddd5",
+    diffAdded: "#0d5e2a",
     diffRemoved: "#cf222e",
-    diffContext: "#57606a",
-    diffHunkHeader: "#8250df",
-    diffAddedBg: "#f0fff4",
-    diffRemovedBg: "#fff7f6",
-    diffContextBg: "#f6f8fa",
-    diffLineNumber: "#afb8c1",
-    markdownHeading: "#0550ae",
-    markdownLink: "#0a3069",
-    markdownCode: "#0550ae",
-    markdownBlockQuote: "#116329",
-    markdownHorizontalRule: "#d0d7de"
+    diffContext: "rgba(0,0,0,0.47)",
+    diffHunkHeader: "#6b5b95",
+    diffAddedBg: "#e6f5e6",
+    diffRemovedBg: "#fce8e8",
+    diffContextBg: "#f5f5f0",
+    diffLineNumber: "#cccccc",
+    markdownHeading: "#002b8f",
+    markdownLink: "#0044ff",
+    markdownCode: "#002b8f",
+    markdownBlockQuote: "#0d5e2a",
+    markdownHorizontalRule: "#d0d0c8",
+    selectionBg: "rgba(0, 68, 255, 0.18)",
+    selectionText: "inherit"
+  };
+}
+function getDarkTheme() {
+  return {
+    primary: "#e86cb5",
+    secondary: "#ffd9b3",
+    accent: "#e86cb5",
+    text: "rgba(255,255,255,0.8)",
+    textMuted: "rgba(255,255,255,0.35)",
+    background: "#121212",
+    backgroundPanel: "#1a1a1a",
+    backgroundElement: "#242424",
+    border: "#333333",
+    borderActive: "#e86cb5",
+    borderSubtle: "#2a2a2a",
+    diffAdded: "#a3e8b0",
+    diffRemoved: "#c76e6e",
+    diffContext: "rgba(255,255,255,0.35)",
+    diffHunkHeader: "#8099b3",
+    diffAddedBg: "rgba(166,227,161,0.1)",
+    diffRemovedBg: "rgba(199,110,110,0.1)",
+    diffContextBg: "#1a1a1a",
+    diffLineNumber: "rgba(255,255,255,0.3)",
+    markdownHeading: "#ffffff",
+    markdownLink: "#e86cb5",
+    markdownCode: "#ffd9b3",
+    markdownBlockQuote: "#8fb38f",
+    markdownHorizontalRule: "#333333",
+    selectionBg: "rgba(232, 108, 181, 0.22)",
+    selectionText: "inherit"
   };
 }
 function loadCssAssets() {
@@ -563,12 +595,12 @@ const changesUnsafeCss = \`
 
 [data-expand-button] {
   cursor: pointer !important;
-  color: #57606a !important;
+  color: var(--muted) !important;
   transition: color 0.15s !important;
 }
 
 [data-expand-button]:hover {
-  color: #0550ae !important;
+  color: var(--primary) !important;
 }
 
 [data-expand-button] svg {
@@ -583,8 +615,7 @@ const changesUnsafeCss = \`
 }
 
 [data-separator-content] {
-  color: #57606a !important;
-  font-size: 12px !important;
+  color: var(--muted) !important;
 }
 \`;
 
@@ -611,7 +642,7 @@ function createViewOptions(state) {
     disableLineNumbers: !state.showLineNumbers,
     disableBackground: !state.showBackground,
     disableFileHeader: !state.showFileHeader,
-    themeType: "light",
+    themeType: window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
     unsafeCSS: diffUnsafeCss,
   };
 }
@@ -820,7 +851,7 @@ try {
           overflow: "wrap",
           disableLineNumbers: false,
           disableFileHeader: true,
-          themeType: "light",
+          themeType: window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
           unsafeCSS: diffUnsafeCss,
         },
       });
@@ -858,7 +889,8 @@ function renderDocument({ bodyHtml, title, sourceLabel }) {
   const annotationsScript = loadAnnotationsScript();
   const fontFaceCss = loadFontFaceCss();
   const diffBootScript = createDiffBootScript(DEFAULT_DIFFS_MODULE_URL, DEFAULT_DIFFS_SSR_MODULE_URL);
-  const theme = getEmbeddedCritiqueTheme();
+  const light = getLightTheme();
+  const dark = getDarkTheme();
   const checkmarkSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.75 12.75L10 15.25L16.25 8.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
   return `<!doctype html>
 <html lang="en">
@@ -868,31 +900,68 @@ function renderDocument({ bodyHtml, title, sourceLabel }) {
     <title>${escapeHtml(title)}</title>
     <style>
       :root {
-        color-scheme: light;
-        --primary: ${theme.primary};
-        --secondary: ${theme.secondary};
-        --accent: ${theme.accent};
-        --text: ${theme.text};
-        --muted: ${theme.textMuted};
-        --bg: ${theme.background};
-        --panel: ${theme.backgroundPanel};
-        --element: ${theme.backgroundElement};
-        --border: ${theme.border};
-        --border-active: ${theme.borderActive};
-        --border-subtle: ${theme.borderSubtle};
-        --diff-add: ${theme.diffAdded};
-        --diff-remove: ${theme.diffRemoved};
-        --diff-context: ${theme.diffContext};
-        --diff-hunk: ${theme.diffHunkHeader};
-        --diff-add-bg: ${theme.diffAddedBg};
-        --diff-remove-bg: ${theme.diffRemovedBg};
-        --diff-context-bg: ${theme.diffContextBg};
-        --diff-line-number: ${theme.diffLineNumber};
-        --heading: ${theme.markdownHeading};
-        --link: ${theme.markdownLink};
-        --inline-code: ${theme.markdownCode};
-        --quote: ${theme.markdownBlockQuote};
-        --rule: ${theme.markdownHorizontalRule};
+        color-scheme: light dark;
+        --primary: ${light.primary};
+        --secondary: ${light.secondary};
+        --accent: ${light.accent};
+        --text: ${light.text};
+        --muted: ${light.textMuted};
+        --bg: ${light.background};
+        --panel: ${light.backgroundPanel};
+        --element: ${light.backgroundElement};
+        --border: ${light.border};
+        --border-active: ${light.borderActive};
+        --border-subtle: ${light.borderSubtle};
+        --diff-add: ${light.diffAdded};
+        --diff-remove: ${light.diffRemoved};
+        --diff-context: ${light.diffContext};
+        --diff-hunk: ${light.diffHunkHeader};
+        --diff-add-bg: ${light.diffAddedBg};
+        --diff-remove-bg: ${light.diffRemovedBg};
+        --diff-context-bg: ${light.diffContextBg};
+        --diff-line-number: ${light.diffLineNumber};
+        --heading: ${light.markdownHeading};
+        --link: ${light.markdownLink};
+        --inline-code: ${light.markdownCode};
+        --quote: ${light.markdownBlockQuote};
+        --rule: ${light.markdownHorizontalRule};
+        --selection-bg: ${light.selectionBg};
+        --selection-text: ${light.selectionText};
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --primary: ${dark.primary};
+          --secondary: ${dark.secondary};
+          --accent: ${dark.accent};
+          --text: ${dark.text};
+          --muted: ${dark.textMuted};
+          --bg: ${dark.background};
+          --panel: ${dark.backgroundPanel};
+          --element: ${dark.backgroundElement};
+          --border: ${dark.border};
+          --border-active: ${dark.borderActive};
+          --border-subtle: ${dark.borderSubtle};
+          --diff-add: ${dark.diffAdded};
+          --diff-remove: ${dark.diffRemoved};
+          --diff-context: ${dark.diffContext};
+          --diff-hunk: ${dark.diffHunkHeader};
+          --diff-add-bg: ${dark.diffAddedBg};
+          --diff-remove-bg: ${dark.diffRemovedBg};
+          --diff-context-bg: ${dark.diffContextBg};
+          --diff-line-number: ${dark.diffLineNumber};
+          --heading: ${dark.markdownHeading};
+          --link: ${dark.markdownLink};
+          --inline-code: ${dark.markdownCode};
+          --quote: ${dark.markdownBlockQuote};
+          --rule: ${dark.markdownHorizontalRule};
+          --selection-bg: ${dark.selectionBg};
+          --selection-text: ${dark.selectionText};
+        }
+      }
+
+      ::selection {
+        background: var(--selection-bg);
+        color: var(--selection-text);
       }
 
 ${fontFaceCss}
@@ -914,7 +983,6 @@ ${annotationsCss}
         background: var(--bg);
         color: var(--text);
         font-family: inherit;
-        font-size: 13px;
         font-weight: 500;
         cursor: pointer;
         box-shadow: 0 1px 3px rgba(0,0,0,0.08);
