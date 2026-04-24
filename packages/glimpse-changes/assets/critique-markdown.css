@@ -204,7 +204,8 @@
   max-width: 100%;
 }
 
-.markdown-body .diff-shell {
+.markdown-body .diff-shell,
+.markdown-body .changes-shell {
   max-width: calc(100cqw - 32px);
   position: relative;
   left: 50%;
@@ -213,7 +214,8 @@
   margin-bottom: 3.4em;
 }
 
-body[data-diff-style="split"] .diff-shell {
+body[data-diff-style="split"] .diff-shell,
+body[data-diff-style="split"] .changes-shell {
   width: min(var(--diff-split-shell-width), calc(100cqw - 32px));
 }
 
@@ -234,6 +236,14 @@ body[data-diff-style="unified"] .diff-shell {
 .diff-mount {
   display: grid;
   gap: 1.7em;
+}
+
+/* Hide hunk separators in inline diff blocks (non-expandable) */
+.diff-shell [data-separator],
+.diff-shell [data-separator-wrapper],
+.diff-shell [data-separator-content],
+.diff-shell [data-unmodified-lines] {
+  display: none !important;
 }
 
 .diff-file-block {
@@ -303,6 +313,82 @@ body[data-diff-style="unified"] .diff-shell {
   --diffs-gap-block: 8px;
   --diffs-min-number-column-width: var(--diffs-min-number-column-width-default);
   font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Changes blocks (expandable file diffs) */
+
+.changes-shell {
+  display: grid;
+  gap: 1.7em;
+}
+
+.changes-file {
+  display: grid;
+  gap: 0.85em;
+}
+
+.changes-file-header {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.changes-mount {
+  max-height: var(--diff-shell-max-height);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.changes-mount .diffs-host {
+  display: block;
+  width: 100%;
+  font-size: 12px;
+  max-width: 100%;
+  --diffs-font-family:
+    "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo,
+    "Ubuntu Mono", Consolas, monospace;
+  --diffs-header-font-family:
+    "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", Monaco, Menlo,
+    "Ubuntu Mono", Consolas, monospace;
+  --diffs-bg: var(--bg);
+  --diffs-fg: var(--text);
+  --diffs-fg-number: var(--muted);
+  --diffs-bg-context: var(--bg);
+  --diffs-bg-separator: var(--panel);
+  --diffs-bg-addition: var(--diff-add-bg);
+  --diffs-bg-deletion: var(--diff-remove-bg);
+  --diffs-bg-addition-number: var(--diff-add-bg);
+  --diffs-bg-deletion-number: var(--diff-remove-bg);
+  --diffs-bg-addition-emphasis: color-mix(
+    in srgb,
+    var(--diff-add-bg) 68%,
+    var(--diff-add) 32%
+  );
+  --diffs-bg-deletion-emphasis: color-mix(
+    in srgb,
+    var(--diff-remove-bg) 68%,
+    var(--diff-remove) 32%
+  );
+  --diffs-addition-base: var(--diff-add);
+  --diffs-deletion-base: var(--diff-remove);
+  --diffs-modified-base: var(--diff-hunk);
+  --diffs-font-size: 0.85em;
+  --diffs-line-height: 1.7;
+  --diffs-gap-inline: 8px;
+  --diffs-gap-block: 8px;
+  --diffs-min-number-column-width: var(--diffs-min-number-column-width-default);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.changes-file-error {
+  padding: 8px 12px;
+  color: var(--diff-remove);
+  background: var(--diff-remove-bg);
+  border-radius: 6px;
+  font-size: 12px;
 }
 
 .code-file-block {
@@ -390,6 +476,7 @@ body[data-diff-style="unified"] .diff-shell {
   .markdown-body > hr,
   .code-shell,
   .diff-shell,
+  .changes-shell,
   .code-block {
     max-width: 100%;
     min-width: 0;
@@ -404,7 +491,8 @@ body[data-diff-style="unified"] .diff-shell {
     margin-left: auto;
   }
 
-  .diff-shell {
+  .diff-shell,
+  .changes-shell {
     left: 0;
     transform: none;
   }

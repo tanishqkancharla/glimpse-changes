@@ -11,8 +11,8 @@ importers:
   packages/glimpse-changes:
     dependencies:
       glimpseui:
-        specifier: ^0.6.2
-        version: 0.6.2
+        specifier: ^0.8.0
+        version: 0.8.0
     devDependencies:
       vitest:
         specifier: ^3.2.4
@@ -413,8 +413,8 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
-  glimpseui@0.6.2:
-    resolution: {integrity: sha512-U/pEqum33QuC58PjSvctSiV6HGSIfTR7y2dJv0hSFYzfsIfi40dMy0nwmaB9LOpGprmPW2ybaaFQIEhlIontOA==}
+  glimpseui@0.8.0:
+    resolution: {integrity: sha512-trpEKiULW9sGjsLqtSH/+hMPcohvq3tkN6yM55t0WIgTsHt53+HXVTMf5ipy/w+kXbkbC/XP7DSRvzZC+E8xig==}
     engines: {node: '>=18'}
     os: [darwin, linux, win32]
     hasBin: true
@@ -847,7 +847,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  glimpseui@0.6.2: {}
+  glimpseui@0.8.0: {}
 
   js-tokens@9.0.1: {}
 

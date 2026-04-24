@@ -19,7 +19,7 @@ When creating a change-doc for Glimpse, use this structure by default:
 3. One section per logical change, each with:
    - a clear section title
    - a short explanation of what changed and why
-   - a diff, preferably a live `git diff` command block
+   - a `changes` block referencing the relevant files
 
 Prefer grouping by logical concern instead of by file whenever possible.
 Lead with rationale, then show the diff that supports it.
@@ -37,14 +37,16 @@ Template:
 ## <Section title>
 What changed and why it matters.
 
-!`git diff -- path/to/file`
+```changes
+path/to/file
+```
 
 ## <Another section title>
 More rationale for this group of changes.
 
-```diff
-diff --git a/foo.ts b/foo.ts
-...
+```changes
+path/to/other-file
+path/to/related-file
 ```
 ````
 
@@ -63,14 +65,15 @@ cat <<'EOF' | npx glimpse-changes -
 Explain that agents should usually open the review, ask the user to inspect it,
 and wait until the user says they are done.
 
-!`git diff -- packages/glimpse-changes/skills/glimpse-changes/SKILL.md`
+```changes
+packages/glimpse-changes/skills/glimpse-changes/SKILL.md
+```
 EOF
 ```
 
 ## Usage
 
-Prefer piping markdown over stdin. This avoids shell-quoting issues, especially
-for command diffs that use backticks.
+Prefer piping markdown over stdin. This avoids shell-quoting issues.
 
 ```bash
 cat report.md | npx glimpse-changes
@@ -131,25 +134,66 @@ npx glimpse-changes --background "# Title\n\nContent"
 
 The output file contains `__PENDING__` until the user closes the window, then it contains the review text. Poll by reading the file and checking whether it still says `__PENDING__`. If the user closes the window without adding review comments, the file will contain a no-review completion message.
 
-## Diff blocks
+## Changes blocks
 
-**Command diffs** — executed at render time, must start with `git diff`:
+Use `changes` fenced code blocks to show file diffs. List file paths (relative
+to the working directory) and the renderer resolves old/new contents from git
+automatically. Diffs are expandable — users can click to reveal collapsed
+context between hunks.
 
+**Show full file diffs:**
+
+````
+```changes
+src/db/queries.ts
+src/db/schema.ts
 ```
-!`git diff -- path/to/file`
+````
+
+**Focus on a line range** (still expandable, but scrolled to the range):
+
+````
+```changes
+src/config.ts:42-50
+```
+````
+
+**Group related files** in one block for a stacked view, or **separate them**
+with prose for a guided walkthrough:
+
+````md
+The query layer now batches reads:
+
+```changes
+src/db/queries.ts
 ```
 
-When using command diffs, prefer piping markdown via stdin or a heredoc:
+I also updated the schema to match:
 
-```bash
-cat <<'EOF' | npx glimpse-changes -
-## Changes
-
-!`git diff -- path/to/file`
-EOF
+```changes
+src/db/schema.ts
 ```
+````
 
-**Full unified diffs** — paste standard `git diff` output in a `diff` fenced block:
+The renderer handles new files (untracked), deleted files, and modified files.
+If a file cannot be resolved, it shows an error inline.
+
+## Inline diffs
+
+For ad-hoc illustrations not tied to real files, use `diff` fenced blocks with
+literal `+`/`-`/` ` prefixed lines:
+
+````
+```diff
+-removed line
++added line
+ context line
+```
+````
+
+Every non-empty line must start with `+`, `-`, or a space.
+
+You can also paste full unified diff output:
 
 ````
 ```diff
@@ -162,20 +206,6 @@ diff --git a/foo.txt b/foo.txt
 +new
 ```
 ````
-
-**Inline diffs** — bare `+`/`-`/` ` prefixed lines in a `diff` fenced block:
-
-````
-```diff
--removed line
-+added line
- context line
-```
-````
-
-Every non-empty line must start with `+`, `-`, or a space. Invalid lines cause an error.
-
-For added-file snippets, you can start with `+++ path/to/file.ext` and keep the remaining lines prefixed with `+`. The renderer will synthesize a proper new-file diff so the filename and syntax highlighting are preserved.
 
 ## Code blocks
 
@@ -191,8 +221,7 @@ const x = 1;
 
 1. Inspect changes with `git diff`, `git status`, etc.
 2. Write the change-doc using the default format: title, summary bullets, then rationale-plus-diff sections.
-3. Pipe it to `npx glimpse-changes`.
-4. Ask the user to review it and tell you when they are done.
-5. Only use `--background` and review-file polling for explicitly asynchronous workflows.
-
-Prefer command diffs (`!`git diff ...``) over pasting raw diff content — they always reflect the current working tree. Prefer stdin/heredocs over inline shell-quoted arguments when command diffs are involved.
+3. Use `changes` blocks to reference files — don't paste raw diff content.
+4. Pipe it to `npx glimpse-changes`.
+5. Ask the user to review it and tell you when they are done.
+6. Only use `--background` and review-file polling for explicitly asynchronous workflows.

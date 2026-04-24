@@ -310,19 +310,39 @@ describe("glimpse-changes CLI", () => {
   });
 
   describe("pre-detach validation", () => {
-    it("errors on invalid command diff (non-git-diff command)", () => {
-      const md = "# Bad Command\n\n!`echo hello`\n";
+    it("renders changes block with file references", () => {
+      const md = [
+        "# Changes Test",
+        "",
+        "```changes",
+        "scripts/render-md.ts",
+        "```",
+      ].join("\n");
+
       const result = run(["--dry-run"], md);
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stderr).toContain(
-        'Command diffs must start with "git diff"',
-      );
+      expect(result.exitCode).toBe(0);
+      const html = readRenderedHtml("Changes Test");
+      expect(html).toContain('data-changes-shell');
+      expect(html).toContain('data-file-name="scripts/render-md.ts"');
+      // Should have resolved file contents from git + working tree
+      expect(html).toContain('data-new-contents=');
     });
 
-    it("errors on command diff that produces no valid diff output", () => {
-      const md = "# Bad Diff\n\n!`git diff --no-such-flag-xxxxx`\n";
+    it("renders changes block with unresolvable file as error", () => {
+      const md = [
+        "# Bad File",
+        "",
+        "```changes",
+        "nonexistent/file/path.ts",
+        "```",
+      ].join("\n");
+
       const result = run(["--dry-run"], md);
-      expect(result.exitCode).not.toBe(0);
+      expect(result.exitCode).toBe(0);
+      const output = JSON.parse(result.stdout.trim());
+      const html = readRenderedHtml("Bad File");
+      expect(html).toContain("Could not resolve");
+      expect(html).toContain("nonexistent/file/path.ts");
     });
 
     it("renders valid markdown with all block types", () => {

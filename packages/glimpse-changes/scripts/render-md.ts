@@ -40,8 +40,6 @@ Input:
 
 Tips:
   - Use '-' to force reading from stdin: npx glimpse-changes -
-  - When using !\`git diff ...\` command diffs, prefer stdin/heredocs over
-    shell-quoted inline arguments.
 `);
 }
 
@@ -218,39 +216,67 @@ function renderPlainCodeBlock(code, language) {
   return `<div class="code-shell" data-code-shell data-code-contents="${contentsBase64}" data-code-filename="${escapeHtml(filename)}" data-code-lang="${escapeHtml(lang || "text")}"><div class="code-label">${escapeHtml(lang || "text")}</div><pre class="code-block"><code>${escapeHtml(code.replace(/\n$/, ""))}</code></pre></div>`;
 }
 
-function executeCommand(command) {
-  try {
-    return execSync(command, { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
-  } catch (error) {
-    if (error.stdout) return error.stdout;
-    throw new Error(`Command failed: ${command}\n${error.message}`);
-  }
-}
+function renderChangesBlock(code) {
+  const lines = code.split("\n").filter((l) => l.trim() !== "");
+  const fileHtmlParts = [];
 
-function validateDiffOutput(output, command) {
-  const lines = output.trim().split("\n");
-  const hasDiffHeader = lines.some((l) => l.startsWith("diff --git "));
-  const hasHunkHeader = lines.some((l) => isValidUnifiedHunkHeader(l));
-  if (!hasDiffHeader && !hasHunkHeader) {
-    throw new Error(
-      `Command did not produce a valid unified diff: ${command}\nOutput:\n${output.slice(0, 500)}`,
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const rangeMatch = /^(.+):([0-9]+)-([0-9]+)$/.exec(trimmed);
+    const filepath = rangeMatch ? rangeMatch[1] : trimmed;
+    const focusStart = rangeMatch ? rangeMatch[2] : "";
+    const focusEnd = rangeMatch ? rangeMatch[3] : "";
+
+    let oldContents = null;
+    let newContents = null;
+
+    try {
+      oldContents = execSync(`git show HEAD:./${filepath}`, {
+        encoding: "utf8",
+        maxBuffer: 10 * 1024 * 1024,
+      });
+    } catch {
+      oldContents = null;
+    }
+
+    try {
+      newContents = readFileSync(filepath, "utf8");
+    } catch {
+      newContents = null;
+    }
+
+    if (oldContents === null && newContents === null) {
+      fileHtmlParts.push(
+        `<div class="changes-file-error">Could not resolve: ${escapeHtml(filepath)}</div>`,
+      );
+      continue;
+    }
+
+    const attrs = [
+      `data-file-name="${escapeHtml(filepath)}"`,
+      oldContents !== null
+        ? `data-old-contents="${encodeBase64Utf8(oldContents)}"`
+        : null,
+      newContents !== null
+        ? `data-new-contents="${encodeBase64Utf8(newContents)}"`
+        : null,
+      `data-focus-start="${escapeHtml(focusStart)}"`,
+      `data-focus-end="${escapeHtml(focusEnd)}"`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    fileHtmlParts.push(
+      `<div class="changes-file" ${attrs}>
+    <div class="changes-file-header">${escapeHtml(filepath)}</div>
+    <div class="changes-mount"></div>
+  </div>`,
     );
   }
-}
 
-function renderCommandDiff(command) {
-  const trimmedCommand = command.trim();
-  if (!trimmedCommand.startsWith("git diff")) {
-    throw new Error(
-      `Command diffs must start with "git diff", got: ${trimmedCommand}`,
-    );
-  }
-  const output = executeCommand(trimmedCommand);
-  if (!output.trim()) {
-    return `<div class="code-shell"><div class="code-label">$ ${escapeHtml(trimmedCommand)}</div><pre class="code-block"><code>(no output)</code></pre></div>`;
-  }
-  validateDiffOutput(output, trimmedCommand);
-  return renderDiffBlock(output);
+  return `<div class="changes-shell" data-changes-shell>
+  ${fileHtmlParts.join("\n  ")}
+</div>`;
 }
 
 function hasUnifiedDiffStructure(lines) {
@@ -412,7 +438,6 @@ function renderMarkdown(markdown) {
     line.trim() === "" ||
     /^#{1,6}\s+/.test(line) ||
     /^(`{3,}|~{3,})/.test(line) ||
-    /^!\`[^`]+\`\s*$/.test(line.trim()) ||
     /^>\s?/.test(line) ||
     /^[-*+]\s+/.test(line) ||
     /^\d+\.\s+/.test(line) ||
@@ -439,14 +464,6 @@ function renderMarkdown(markdown) {
       continue;
     }
 
-    const commandMatch = /^!\`([^`]+)\`\s*$/.exec(trimmed);
-    if (commandMatch) {
-      const command = commandMatch[1];
-      html.push(renderCommandDiff(command));
-      index += 1;
-      continue;
-    }
-
     const fenceOpen = parseFenceOpen(trimmed);
     if (fenceOpen) {
       const buffer = [];
@@ -459,7 +476,11 @@ function renderMarkdown(markdown) {
         index += 1;
       }
       if (index < lines.length) index += 1;
-      html.push(renderCodeBlock(buffer.join("\n"), fenceOpen.language));
+      if (fenceOpen.language === "changes") {
+        html.push(renderChangesBlock(buffer.join("\n")));
+      } else {
+        html.push(renderCodeBlock(buffer.join("\n"), fenceOpen.language));
+      }
       continue;
     }
 
@@ -641,12 +662,48 @@ const diffUnsafeCss = \`
   display: block !important;
   font-variant-numeric: inherit !important;
 }
+\`;
 
-[data-separator],
-[data-separator-wrapper],
-[data-separator-content],
-[data-unmodified-lines] {
-  display: none !important;
+const changesUnsafeCss = \`
+[data-column-number] {
+  box-sizing: border-box !important;
+  width: calc(var(--diffs-min-number-column-width-default, 2ch) + 1ch) !important;
+  min-width: calc(var(--diffs-min-number-column-width-default, 2ch) + 1ch) !important;
+  padding-left: 0 !important;
+  padding-right: 1ch !important;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums lining-nums !important;
+}
+
+[data-line-number-content] {
+  display: block !important;
+  font-variant-numeric: inherit !important;
+}
+
+[data-expand-button] {
+  cursor: pointer !important;
+  color: #57606a !important;
+  transition: color 0.15s !important;
+}
+
+[data-expand-button]:hover {
+  color: #0550ae !important;
+}
+
+[data-expand-button] svg {
+  width: 16px !important;
+  height: 16px !important;
+  opacity: 0.7 !important;
+  transition: opacity 0.15s !important;
+}
+
+[data-expand-button]:hover svg {
+  opacity: 1 !important;
+}
+
+[data-separator-content] {
+  color: #57606a !important;
+  font-size: 12px !important;
 }
 \`;
 
@@ -753,6 +810,120 @@ try {
 
   for (const shellState of shellStates) {
     await renderShell(shellState, preloadPatchFile, renderHTML, state);
+  }
+
+  // Render changes blocks (expandable file diffs)
+  // Uses FileDiff.render() for full interactivity (expand/collapse hunks).
+  // FileDiff renders into a shadow DOM, so we inject the core CSS manually.
+  const { FileDiff, preloadHighlighter, wrapCoreCSS, SVGSpriteSheet } = mod;
+  const changesShells = document.querySelectorAll("[data-changes-shell]");
+  if (FileDiff && changesShells.length > 0) {
+    // Collect unique languages from filenames for syntax highlighting
+    const langSet = new Set();
+    for (const shell of changesShells) {
+      for (const fileEl of shell.querySelectorAll(".changes-file")) {
+        const name = fileEl.dataset.fileName || "";
+        const ext = name.split(".").pop()?.toLowerCase();
+        if (ext) langSet.add(ext === "ts" || ext === "tsx" ? "typescript" : ext === "js" || ext === "jsx" ? "javascript" : ext);
+      }
+    }
+
+    // Preload highlighter with required themes and languages
+    try {
+      await preloadHighlighter({
+        themes: ["pierre-dark", "pierre-light"],
+        langs: [...langSet],
+      });
+    } catch (e) {
+      console.warn("Failed to preload highlighter:", e);
+    }
+
+    // Get the core CSS to inject into shadow roots
+    const coreCSS = wrapCoreCSS();
+
+    for (const shell of changesShells) {
+      for (const fileEl of shell.querySelectorAll(".changes-file")) {
+        try {
+          const filename = fileEl.dataset.fileName || "file";
+          const oldEncoded = fileEl.dataset.oldContents;
+          const newEncoded = fileEl.dataset.newContents;
+          const focusStart = fileEl.dataset.focusStart;
+
+          const oldContents = oldEncoded ? decodeBase64Utf8(oldEncoded) : "";
+          const newContents = newEncoded ? decodeBase64Utf8(newEncoded) : "";
+
+          const oldFile = { name: filename, contents: oldContents };
+          const newFile = { name: filename, contents: newContents };
+
+          const changesOptions = {
+            ...createViewOptions(state),
+            hunkSeparators: "line-info",
+            disableFileHeader: true,
+            unsafeCSS: changesUnsafeCss,
+          };
+
+          const mount = fileEl.querySelector(".changes-mount");
+          if (!mount) continue;
+
+          const host = document.createElement("div");
+          host.className = "diffs-host";
+          mount.replaceChildren(host);
+
+          const instance = new FileDiff(changesOptions);
+          instance.render({
+            oldFile,
+            newFile,
+            fileContainer: host,
+          });
+
+          // Inject core CSS and SVG sprite sheet into shadow root
+          if (host.shadowRoot) {
+            if (coreCSS) {
+              const styleEl = document.createElement("style");
+              styleEl.textContent = coreCSS;
+              host.shadowRoot.prepend(styleEl);
+            }
+            if (SVGSpriteSheet) {
+              const spriteContainer = document.createElement("div");
+              spriteContainer.innerHTML = SVGSpriteSheet;
+              const spriteEl = spriteContainer.firstElementChild;
+              if (spriteEl) host.shadowRoot.prepend(spriteEl);
+            }
+
+            // Preserve scroll position when hunks expand/collapse.
+            // Capture height before click, then after DOM mutation + layout,
+            // adjust scrollY if the host is above the viewport.
+            const sr = host.shadowRoot;
+            let heightBeforeClick = host.offsetHeight;
+
+            sr.addEventListener("click", () => {
+              heightBeforeClick = host.offsetHeight;
+            }, { capture: true });
+
+            const observer = new MutationObserver(() => {
+              requestAnimationFrame(() => {
+                const newHeight = host.offsetHeight;
+                const delta = newHeight - heightBeforeClick;
+                if (delta === 0) return;
+                // Only adjust if the host starts above the viewport top,
+                // meaning expanded content pushes things below it down.
+                if (host.getBoundingClientRect().top < 0) {
+                  window.scrollBy(0, delta);
+                }
+                heightBeforeClick = newHeight;
+              });
+            });
+            observer.observe(sr, { childList: true, subtree: true });
+          }
+
+          if (focusStart) {
+            mount.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        } catch (error) {
+          console.error("Failed to render changes file block.", error);
+        }
+      }
+    }
   }
 
   // Render plain code blocks with syntax highlighting
