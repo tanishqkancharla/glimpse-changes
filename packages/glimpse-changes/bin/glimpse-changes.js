@@ -1120,7 +1120,8 @@ async function main() {
   if (readFromStdin) {
     markdown = await readStdin();
   } else if (inlineMarkdown !== null) {
-    markdown = inlineMarkdown;
+    markdown = inlineMarkdown.replace(/\\n/g, `
+`).replace(/\\t/g, "\t");
   } else if (!process.stdin.isTTY) {
     markdown = await readStdin();
   } else {

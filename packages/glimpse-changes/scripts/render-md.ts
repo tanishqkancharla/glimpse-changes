@@ -1261,7 +1261,9 @@ async function main() {
   if (readFromStdin) {
     markdown = await readStdin();
   } else if (inlineMarkdown !== null) {
-    markdown = inlineMarkdown;
+    // Interpret common escape sequences in inline arguments so that
+    // `npx glimpse-changes "# Title\n\nContent"` works as expected.
+    markdown = inlineMarkdown.replace(/\\n/g, "\n").replace(/\\t/g, "\t");
   } else if (!process.stdin.isTTY) {
     markdown = await readStdin();
   } else {

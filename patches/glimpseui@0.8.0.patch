@@ -1,0 +1,365 @@
+diff --git a/src/glimpse.swift b/src/glimpse.swift
+index 07584e4b42a3a3c6082ab969ef3a78d56921d522..5bf3818d96449869a7daa009250449207c73047d 100644
+--- a/src/glimpse.swift
++++ b/src/glimpse.swift
+@@ -241,6 +241,40 @@ window.glimpse = {
+ class GlimpsePanel: NSWindow {
+     override var canBecomeKey: Bool { true }
+     override var canBecomeMain: Bool { true }
++
++    // When running as accessory (noDock) or frameless, macOS skips normal
++    // menu key-equivalent routing. Fall back to the responder chain so
++    // copy/paste/undo/redo etc. still work.
++    override func performKeyEquivalent(with event: NSEvent) -> Bool {
++        if super.performKeyEquivalent(with: event) {
++            return true
++        }
++        if NSApp.mainMenu?.performKeyEquivalent(with: event) == true {
++            return true
++        }
++
++        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
++        guard modifiers == .command || modifiers == [.command, .shift] else {
++            return false
++        }
++        guard let chars = event.charactersIgnoringModifiers?.lowercased() else {
++            return false
++        }
++
++        let action: Selector?
++        switch chars {
++        case "c": action = #selector(NSText.copy(_:))
++        case "x": action = #selector(NSText.cut(_:))
++        case "v": action = #selector(NSText.paste(_:))
++        case "a": action = #selector(NSText.selectAll(_:))
++        case "z":
++            action = modifiers == [.command, .shift] ? Selector(("redo:")) : Selector(("undo:"))
++        default: action = nil
++        }
++
++        guard let action else { return false }
++        return NSApp.sendAction(action, to: nil, from: self)
++    }
+ }
+ 
+ // MARK: - Status Item View Controller
+@@ -340,6 +374,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKScri
+     }
+ 
+     func applicationDidFinishLaunching(_ notification: Notification) {
++        setupMainMenu()
+         if config.statusItem {
+             setupStatusItem()
+         } else {
+@@ -363,6 +398,298 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKScri
+         startStdinReader()
+     }
+ 
++    // MARK: - Main Menu
++
++    private func setupMainMenu() {
++        let mainMenu = NSMenu()
++
++        // App menu
++        let appMenuItem = NSMenuItem()
++        let appMenu = NSMenu()
++        appMenu.addItem(withTitle: "About Glimpse", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
++        appMenu.addItem(.separator())
++        appMenu.addItem(withTitle: "Hide Glimpse", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
++        let hideOthersItem = appMenu.addItem(withTitle: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
++        hideOthersItem.keyEquivalentModifierMask = [.command, .option]
++        appMenu.addItem(withTitle: "Show All", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
++        appMenu.addItem(.separator())
++        appMenu.addItem(withTitle: "Quit Glimpse", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
++        appMenuItem.submenu = appMenu
++        mainMenu.addItem(appMenuItem)
++
++        // File menu
++        let fileMenuItem = NSMenuItem()
++        let fileMenu = NSMenu(title: "File")
++        fileMenu.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
++        fileMenuItem.submenu = fileMenu
++        mainMenu.addItem(fileMenuItem)
++
++        // Edit menu
++        let editMenuItem = NSMenuItem()
++        let editMenu = NSMenu(title: "Edit")
++        editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
++        let redoItem = editMenu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
++        redoItem.keyEquivalentModifierMask = [.command, .shift]
++        editMenu.addItem(.separator())
++        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
++        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
++        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
++        editMenu.addItem(withTitle: "Delete", action: #selector(NSText.delete(_:)), keyEquivalent: "")
++        editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
++        editMenu.addItem(.separator())
++
++        // Find submenu
++        let findMenuItem = NSMenuItem(title: "Find", action: nil, keyEquivalent: "")
++        let findMenu = NSMenu(title: "Find")
++        findMenu.addItem(withTitle: "Find…", action: #selector(performFindAction(_:)), keyEquivalent: "f")
++        findMenu.addItem(withTitle: "Find Next", action: #selector(performFindNext(_:)), keyEquivalent: "g")
++        let findPrevItem = findMenu.addItem(withTitle: "Find Previous", action: #selector(performFindPrevious(_:)), keyEquivalent: "g")
++        findPrevItem.keyEquivalentModifierMask = [.command, .shift]
++        findMenuItem.submenu = findMenu
++        editMenu.addItem(findMenuItem)
++
++        editMenuItem.submenu = editMenu
++        mainMenu.addItem(editMenuItem)
++
++        // View menu
++        let viewMenuItem = NSMenuItem()
++        let viewMenu = NSMenu(title: "View")
++        viewMenu.addItem(withTitle: "Reload Page", action: #selector(reloadPage(_:)), keyEquivalent: "r")
++        viewMenu.addItem(.separator())
++        viewMenu.addItem(withTitle: "Actual Size", action: #selector(zoomActualSize(_:)), keyEquivalent: "0")
++        viewMenu.addItem(withTitle: "Zoom In", action: #selector(zoomIn(_:)), keyEquivalent: "+")
++        let zoomInAlt = viewMenu.addItem(withTitle: "Zoom In", action: #selector(zoomIn(_:)), keyEquivalent: "=")
++        zoomInAlt.isAlternate = true
++        viewMenu.addItem(withTitle: "Zoom Out", action: #selector(zoomOut(_:)), keyEquivalent: "-")
++        viewMenu.addItem(.separator())
++        viewMenu.addItem(withTitle: "Toggle Developer Tools", action: #selector(toggleDeveloperTools(_:)), keyEquivalent: "i")
++        viewMenu.items.last?.keyEquivalentModifierMask = [.command, .option]
++        viewMenu.addItem(.separator())
++        let fullScreenItem = viewMenu.addItem(withTitle: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
++        fullScreenItem.keyEquivalentModifierMask = [.command, .control]
++        viewMenuItem.submenu = viewMenu
++        mainMenu.addItem(viewMenuItem)
++
++        // Window menu
++        let windowMenuItem = NSMenuItem()
++        let windowMenu = NSMenu(title: "Window")
++        windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
++        windowMenu.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
++        windowMenuItem.submenu = windowMenu
++        mainMenu.addItem(windowMenuItem)
++        NSApp.windowsMenu = windowMenu
++
++        NSApp.mainMenu = mainMenu
++    }
++
++    // MARK: - Menu Actions
++
++    @objc func reloadPage(_ sender: Any?) {
++        webView?.reload()
++    }
++
++    @objc func zoomIn(_ sender: Any?) {
++        webView?.pageZoom *= 1.1
++    }
++
++    @objc func zoomOut(_ sender: Any?) {
++        webView?.pageZoom /= 1.1
++    }
++
++    @objc func zoomActualSize(_ sender: Any?) {
++        webView?.pageZoom = 1.0
++    }
++
++    @objc func toggleDeveloperTools(_ sender: Any?) {
++        // WKWebView exposes the inspector via private API — use the same approach
++        // Safari and many Electron-like apps use. The key is _inspector.
++        guard let webView = webView else { return }
++        if webView.responds(to: Selector(("_inspector"))) {
++            if let inspector = webView.value(forKey: "_inspector") as? NSObject {
++                if inspector.responds(to: Selector(("isVisible"))) {
++                    let isVisible = inspector.value(forKey: "isVisible") as? Bool ?? false
++                    if isVisible {
++                        inspector.perform(Selector(("close")))
++                    } else {
++                        inspector.perform(Selector(("show")))
++                    }
++                } else {
++                    inspector.perform(Selector(("show")))
++                }
++            }
++        }
++    }
++
++    @objc func performFindAction(_ sender: Any?) {
++        // Inject a JavaScript-based find UI into the webview
++        let findJS = """
++        (function() {
++            if (window.__glimpseFindBar) {
++                window.__glimpseFindBar.toggle();
++                return;
++            }
++
++            const bar = document.createElement('div');
++            bar.id = '__glimpse-find-bar';
++            bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--panel,#f5f5f0);border-bottom:1px solid var(--border,#d0d0c8);font-family:system-ui;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.1);';
++
++            const input = document.createElement('input');
++            input.type = 'text';
++            input.placeholder = 'Find in page…';
++            input.style.cssText = 'flex:1;padding:4px 8px;border:1px solid var(--border,#ccc);border-radius:4px;font-size:13px;background:var(--bg,#fff);color:var(--text,#000);outline:none;';
++
++            const info = document.createElement('span');
++            info.style.cssText = 'color:var(--muted,#999);font-size:12px;min-width:60px;text-align:center;';
++
++            const btnStyle = 'padding:4px 8px;border:1px solid var(--border,#ccc);border-radius:4px;background:var(--bg,#fff);color:var(--text,#000);cursor:pointer;font-size:12px;';
++
++            const prevBtn = document.createElement('button');
++            prevBtn.textContent = '▲';
++            prevBtn.style.cssText = btnStyle;
++
++            const nextBtn = document.createElement('button');
++            nextBtn.textContent = '▼';
++            nextBtn.style.cssText = btnStyle;
++
++            const closeBtn = document.createElement('button');
++            closeBtn.textContent = '✕';
++            closeBtn.style.cssText = btnStyle;
++
++            bar.append(input, info, prevBtn, nextBtn, closeBtn);
++            document.body.prepend(bar);
++
++            let matches = [];
++            let currentIdx = -1;
++            let highlights = [];
++
++            function clearHighlights() {
++                highlights.forEach(h => {
++                    const parent = h.parentNode;
++                    if (parent) {
++                        parent.replaceChild(document.createTextNode(h.textContent), h);
++                        parent.normalize();
++                    }
++                });
++                highlights = [];
++                matches = [];
++                currentIdx = -1;
++            }
++
++            function highlightMatches(query) {
++                clearHighlights();
++                if (!query) { info.textContent = ''; return; }
++                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
++                    acceptNode: (node) => {
++                        let el = node.parentElement;
++                        while (el) {
++                            if (el.id === '__glimpse-find-bar') return NodeFilter.FILTER_REJECT;
++                            el = el.parentElement;
++                        }
++                        return NodeFilter.FILTER_ACCEPT;
++                    }
++                });
++                const textNodes = [];
++                while (walker.nextNode()) textNodes.push(walker.currentNode);
++                const lowerQuery = query.toLowerCase();
++                for (const node of textNodes) {
++                    const text = node.textContent;
++                    const lower = text.toLowerCase();
++                    let idx = lower.indexOf(lowerQuery);
++                    if (idx === -1) continue;
++                    const frag = document.createDocumentFragment();
++                    let lastIdx = 0;
++                    while (idx !== -1) {
++                        frag.appendChild(document.createTextNode(text.slice(lastIdx, idx)));
++                        const mark = document.createElement('mark');
++                        mark.style.cssText = 'background:#ffeb3b;color:#000;border-radius:2px;padding:0 1px;';
++                        mark.textContent = text.slice(idx, idx + query.length);
++                        frag.appendChild(mark);
++                        highlights.push(mark);
++                        lastIdx = idx + query.length;
++                        idx = lower.indexOf(lowerQuery, lastIdx);
++                    }
++                    frag.appendChild(document.createTextNode(text.slice(lastIdx)));
++                    node.parentNode.replaceChild(frag, node);
++                }
++                matches = highlights.slice();
++                if (matches.length > 0) {
++                    currentIdx = 0;
++                    focusCurrent();
++                }
++                updateInfo();
++            }
++
++            function focusCurrent() {
++                matches.forEach((m, i) => {
++                    m.style.background = i === currentIdx ? '#ff9800' : '#ffeb3b';
++                });
++                if (matches[currentIdx]) {
++                    matches[currentIdx].scrollIntoView({ behavior: 'smooth', block: 'center' });
++                }
++            }
++
++            function updateInfo() {
++                info.textContent = matches.length > 0 ? `${currentIdx + 1} of ${matches.length}` : (input.value ? 'No results' : '');
++            }
++
++            function goNext() {
++                if (matches.length === 0) return;
++                currentIdx = (currentIdx + 1) % matches.length;
++                focusCurrent(); updateInfo();
++            }
++
++            function goPrev() {
++                if (matches.length === 0) return;
++                currentIdx = (currentIdx - 1 + matches.length) % matches.length;
++                focusCurrent(); updateInfo();
++            }
++
++            function hide() {
++                clearHighlights();
++                bar.style.display = 'none';
++            }
++
++            let debounce;
++            input.addEventListener('input', () => {
++                clearTimeout(debounce);
++                debounce = setTimeout(() => highlightMatches(input.value), 150);
++            });
++            input.addEventListener('keydown', (e) => {
++                if (e.key === 'Escape') { hide(); e.preventDefault(); }
++                if (e.key === 'Enter' && !e.shiftKey) { goNext(); e.preventDefault(); }
++                if (e.key === 'Enter' && e.shiftKey) { goPrev(); e.preventDefault(); }
++            });
++            nextBtn.addEventListener('click', goNext);
++            prevBtn.addEventListener('click', goPrev);
++            closeBtn.addEventListener('click', hide);
++
++            window.__glimpseFindBar = {
++                toggle: () => {
++                    if (bar.style.display === 'none') {
++                        bar.style.display = 'flex';
++                        input.focus();
++                        input.select();
++                    } else {
++                        hide();
++                    }
++                }
++            };
++            input.focus();
++        })();
++        """
++        webView?.evaluateJavaScript(findJS, completionHandler: nil)
++    }
++
++    @objc func performFindNext(_ sender: Any?) {
++        let js = "if(window.__glimpseFindBar){document.querySelector('#__glimpse-find-bar button:nth-of-type(2)').click()}"
++        webView?.evaluateJavaScript(js, completionHandler: nil)
++    }
++
++    @objc func performFindPrevious(_ sender: Any?) {
++        let js = "if(window.__glimpseFindBar){document.querySelector('#__glimpse-find-bar button:nth-of-type(1)').click()}"
++        webView?.evaluateJavaScript(js, completionHandler: nil)
++    }
++
+     // MARK: - Setup
+ 
+     private func setupWindow() {
+@@ -434,6 +761,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKScri
+         webView = WKWebView(frame: window.contentView!.bounds, configuration: makeWebViewConfiguration())
+         webView.autoresizingMask = [.width, .height]
+         webView.navigationDelegate = self
++
++        // Enable Web Inspector (developer tools)
++        if webView.responds(to: Selector(("setInspectable:"))) {
++            webView.setValue(true, forKey: "inspectable")
++        }
++
+         if config.transparent {
+             webView.underPageBackgroundColor = .clear
+             webView.setValue(false, forKey: "drawsBackground")

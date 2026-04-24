@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  glimpseui@0.8.0:
+    hash: d4a5e4ac9b31e1257e8f25b3e4a2fda9138973b66068e02832b152a0b6e6209d
+    path: patches/glimpseui@0.8.0.patch
+
 importers:
 
   .: {}
@@ -12,7 +17,7 @@ importers:
     dependencies:
       glimpseui:
         specifier: ^0.8.0
-        version: 0.8.0
+        version: 0.8.0(patch_hash=d4a5e4ac9b31e1257e8f25b3e4a2fda9138973b66068e02832b152a0b6e6209d)
     devDependencies:
       vitest:
         specifier: ^3.2.4
@@ -847,7 +852,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  glimpseui@0.8.0: {}
+  glimpseui@0.8.0(patch_hash=d4a5e4ac9b31e1257e8f25b3e4a2fda9138973b66068e02832b152a0b6e6209d): {}
 
   js-tokens@9.0.1: {}
 
