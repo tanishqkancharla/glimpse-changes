@@ -258,13 +258,83 @@ body[data-diff-style="unified"] .diff-shell {
 }
 
 .diff-path-label {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   color: var(--muted);
   line-height: 1.7;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.diff-stat {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-family: "JetBrains Mono Nerd", "JetBrains Mono", "Fira Code", monospace;
+  line-height: 1;
+}
+
+.diff-stat-add {
+  color: var(--diff-add);
+}
+
+.diff-stat-remove {
+  color: var(--diff-remove);
+}
+
+.diff-header-spinner {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+.diff-header-spinner .glimpse-spinner {
+  width: 14px;
+  height: 14px;
+}
+
+[data-render-state="ready"] .diff-header-spinner,
+[data-render-state="error"] .diff-header-spinner,
+[data-render-state="empty"] .diff-header-spinner {
+  display: none;
+}
+
+.diff-toggle {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.diff-toggle:hover {
+  color: var(--text);
+  background: var(--element);
+}
+
+.diff-toggle svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
+}
+
+.diff-file-block.collapsed .diff-toggle svg {
+  transform: rotate(-90deg);
+}
+
+.diff-file-block.collapsed .diff-scroll {
+  display: none;
 }
 
 .diff-scroll {
@@ -326,11 +396,32 @@ body[data-diff-style="unified"] .diff-shell {
 }
 
 .changes-file-header {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
   color: var(--muted);
   line-height: 1.7;
+}
+
+.changes-file-header .changes-file-path {
+  flex: 0 1 auto;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.changes-file-header .diff-stat {
+  flex: 0 0 auto;
+}
+
+.changes-file-header .diff-toggle {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.changes-file.collapsed .changes-mount {
+  display: none;
 }
 
 .changes-mount {

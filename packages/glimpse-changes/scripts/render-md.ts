@@ -201,10 +201,15 @@ function parseInline(text) {
   );
 }
 
+function renderLoadingIndicator() {
+  return `<div class="glimpse-loading"><div class="glimpse-spinner"></div><span>Loading diff…</span></div>`;
+}
+
 function renderDiffBlock(code) {
   const patchBase64 = encodeBase64Utf8(normalizePatchForDiffs(code));
 
-  return `<div class="diff-shell" data-diff-shell data-diff-patch="${patchBase64}">
+  return `<div class="diff-shell" data-diff-shell data-diff-patch="${patchBase64}" data-render-state="loading">
+    ${renderLoadingIndicator()}
     <div class="diff-mount" data-diff-hosts></div>
   </div>`;
 }
@@ -213,7 +218,7 @@ function renderPlainCodeBlock(code, language) {
   const lang = (language || "").trim().toLowerCase();
   const contentsBase64 = encodeBase64Utf8(code.replace(/\n$/, ""));
   const filename = lang ? `file.${lang}` : "file.txt";
-  return `<div class="code-shell" data-code-shell data-code-contents="${contentsBase64}" data-code-filename="${escapeHtml(filename)}" data-code-lang="${escapeHtml(lang || "text")}"><div class="code-label">${escapeHtml(lang || "text")}</div><pre class="code-block"><code>${escapeHtml(code.replace(/\n$/, ""))}</code></pre></div>`;
+  return `<div class="code-shell" data-code-shell data-code-contents="${contentsBase64}" data-code-filename="${escapeHtml(filename)}" data-code-lang="${escapeHtml(lang || "text")}" data-render-state="loading">${renderLoadingIndicator()}<div class="code-label">${escapeHtml(lang || "text")}</div><pre class="code-block"><code>${escapeHtml(code.replace(/\n$/, ""))}</code></pre></div>`;
 }
 
 function renderChangesBlock(code) {
@@ -252,6 +257,27 @@ function renderChangesBlock(code) {
       continue;
     }
 
+    // Compute +/- stats
+    let statAdded = 0;
+    let statRemoved = 0;
+    try {
+      const numstat = execSync(`git diff --numstat -- ${JSON.stringify(filepath)}`, {
+        encoding: "utf8",
+      }).trim();
+      if (numstat) {
+        const parts = numstat.split("\t");
+        statAdded = parseInt(parts[0], 10) || 0;
+        statRemoved = parseInt(parts[1], 10) || 0;
+      }
+    } catch {
+      // For new/deleted files, try staged
+      if (oldContents === null && newContents !== null) {
+        statAdded = newContents.split("\n").length;
+      } else if (oldContents !== null && newContents === null) {
+        statRemoved = oldContents.split("\n").length;
+      }
+    }
+
     const attrs = [
       `data-file-name="${escapeHtml(filepath)}"`,
       oldContents !== null
@@ -262,13 +288,23 @@ function renderChangesBlock(code) {
         : null,
       `data-focus-start="${escapeHtml(focusStart)}"`,
       `data-focus-end="${escapeHtml(focusEnd)}"`,
+      `data-stat-added="${statAdded}"`,
+      `data-stat-removed="${statRemoved}"`,
     ]
       .filter(Boolean)
       .join(" ");
 
     fileHtmlParts.push(
-      `<div class="changes-file" ${attrs}>
-    <div class="changes-file-header">${escapeHtml(filepath)}</div>
+      `<div class="changes-file" ${attrs} data-render-state="loading">
+    <div class="changes-file-header">
+      <span class="changes-file-path">${escapeHtml(filepath)}</span>
+      <div class="diff-header-spinner"><div class="glimpse-spinner"></div></div>
+      <span class="diff-stat">${statAdded > 0 ? `<span class="diff-stat-add">+${statAdded}</span>` : ""}${statRemoved > 0 ? `<span class="diff-stat-remove">&#x2212;${statRemoved}</span>` : ""}</span>
+      <button class="diff-toggle" title="Toggle diff" onclick="this.closest('.changes-file').classList.toggle('collapsed')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 6 8 10 12 6"></polyline></svg>
+      </button>
+    </div>
+    ${renderLoadingIndicator()}
     <div class="changes-mount"></div>
   </div>`,
     );
@@ -767,42 +803,138 @@ function createViewOptions(state) {
   };
 }
 
+function countPatchStats(patch) {
+  // Split a multi-file patch into per-file sections, count +/- lines per file
+  const fileStats = [];
+  const sections = patch.split(/^(?=diff --git )/m);
+  for (const section of sections) {
+    if (!section.trim()) continue;
+    const nameMatch = /^diff --git a\\/.+ b\\/(.+)$/m.exec(section);
+    const name = nameMatch ? nameMatch[1] : null;
+    let added = 0, removed = 0;
+    const lines = section.split("\\n");
+    let inHunk = false;
+    for (const line of lines) {
+      if (line.startsWith("@@")) { inHunk = true; continue; }
+      if (!inHunk) continue;
+      if (line.startsWith("+") && !line.startsWith("+++")) added++;
+      else if (line.startsWith("-") && !line.startsWith("---")) removed++;
+    }
+    fileStats.push({ name, added, removed });
+  }
+  return fileStats;
+}
+
+function createFileHeader(fileName, fileStat, wrapper) {
+  const headerRow = document.createElement("div");
+  headerRow.className = "diff-header-row";
+
+  const pathLabel = document.createElement("div");
+  pathLabel.className = "diff-path-label";
+  pathLabel.textContent = fileName;
+  headerRow.append(pathLabel);
+
+  // Inline loading spinner
+  const spinner = document.createElement("div");
+  spinner.className = "diff-header-spinner";
+  spinner.innerHTML = '<div class="glimpse-spinner"></div>';
+  headerRow.append(spinner);
+
+  // +N -M stats
+  const stat = document.createElement("span");
+  stat.className = "diff-stat";
+  if (fileStat.added > 0) {
+    const addSpan = document.createElement("span");
+    addSpan.className = "diff-stat-add";
+    addSpan.textContent = "+" + fileStat.added;
+    stat.append(addSpan);
+  }
+  if (fileStat.removed > 0) {
+    const rmSpan = document.createElement("span");
+    rmSpan.className = "diff-stat-remove";
+    rmSpan.textContent = "\\u2212" + fileStat.removed;
+    stat.append(rmSpan);
+  }
+  headerRow.append(stat);
+
+  // Collapse/expand chevron
+  const toggle = document.createElement("button");
+  toggle.className = "diff-toggle";
+  toggle.title = "Toggle diff";
+  toggle.innerHTML = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 6 8 10 12 6"></polyline></svg>';
+  toggle.addEventListener("click", () => {
+    wrapper.classList.toggle("collapsed");
+  });
+  headerRow.append(toggle);
+
+  return { headerRow, spinner };
+}
+
 async function renderShell(shellState, preloadPatchFile, renderHTML, state) {
   shellState.mount.replaceChildren();
-  shellState.shell.dataset.renderState = "pending";
+  shellState.shell.dataset.renderState = "loading";
+
+  const patchStats = countPatchStats(shellState.patch);
+
+  // Create placeholder headers immediately so file names + spinners are visible while loading
+  const placeholders = patchStats.map((fileStat, fi) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "diff-file-block";
+    const { headerRow, spinner } = createFileHeader(fileStat.name || "file", fileStat, wrapper);
+    wrapper.append(headerRow);
+    shellState.mount.append(wrapper);
+    return { wrapper, spinner };
+  });
 
   const files = await preloadPatchFile({
     patch: shellState.patch,
     options: createViewOptions(state),
   });
   if (files.length === 0) {
+    shellState.mount.replaceChildren();
     shellState.shell.dataset.renderState = "empty";
     return;
   }
 
-  for (const file of files) {
-    const wrapper = document.createElement("div");
-    wrapper.className = "diff-file-block";
+  // If placeholder count doesn't match (e.g. inline diff with no diff --git header), rebuild
+  if (placeholders.length !== files.length) {
+    shellState.mount.replaceChildren();
+    for (let fi = 0; fi < files.length; fi++) {
+      const file = files[fi];
+      const fileName = file.fileDiff?.name || file.fileDiff?.prevName || "file";
+      const fileStat = patchStats.find(s => s.name === fileName) || patchStats[fi] || { added: 0, removed: 0 };
+      const wrapper = document.createElement("div");
+      wrapper.className = "diff-file-block";
+      const { headerRow } = createFileHeader(fileName, fileStat, wrapper);
+      wrapper.append(headerRow);
+      const scroll = document.createElement("div");
+      scroll.className = "diff-scroll";
+      const host = document.createElement("div");
+      host.className = "diffs-host";
+      host.innerHTML = Array.isArray(file.prerenderedHTML)
+        ? renderHTML(file.prerenderedHTML)
+        : String(file.prerenderedHTML || "");
+      scroll.append(host);
+      wrapper.append(scroll);
+      shellState.mount.append(wrapper);
+    }
+  } else {
+    // Fill in diff content into existing placeholders
+    for (let fi = 0; fi < files.length; fi++) {
+      const file = files[fi];
+      const { wrapper, spinner } = placeholders[fi];
+      spinner.remove();
 
-    const headerRow = document.createElement("div");
-    headerRow.className = "diff-header-row";
-
-    const pathLabel = document.createElement("div");
-    pathLabel.className = "diff-path-label";
-    pathLabel.textContent = file.fileDiff?.name || file.fileDiff?.prevName || "file";
-    headerRow.append(pathLabel);
-    wrapper.append(headerRow);
-
-    const scroll = document.createElement("div");
-    scroll.className = "diff-scroll";
-    const host = document.createElement("div");
-    host.className = "diffs-host";
-    host.innerHTML = Array.isArray(file.prerenderedHTML)
-      ? renderHTML(file.prerenderedHTML)
-      : String(file.prerenderedHTML || "");
-    scroll.append(host);
-    wrapper.append(scroll);
-    shellState.mount.append(wrapper);
+      const scroll = document.createElement("div");
+      scroll.className = "diff-scroll";
+      const host = document.createElement("div");
+      host.className = "diffs-host";
+      host.innerHTML = Array.isArray(file.prerenderedHTML)
+        ? renderHTML(file.prerenderedHTML)
+        : String(file.prerenderedHTML || "");
+      scroll.append(host);
+      wrapper.append(scroll);
+    }
   }
   shellState.shell.dataset.renderState = "ready";
 }
@@ -836,6 +968,12 @@ try {
       });
     } catch (error) {
       shell.dataset.renderState = "error";
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const errDiv = document.createElement("div");
+      errDiv.className = "glimpse-error";
+      errDiv.innerHTML = "Failed to render diff.<br><code>" +
+        errMsg.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</code>";
+      shell.prepend(errDiv);
       console.error("Failed to render diff block.", error);
     }
   }
@@ -948,10 +1086,19 @@ try {
             observer.observe(sr, { childList: true, subtree: true });
           }
 
+          fileEl.dataset.renderState = "ready";
+
           if (focusStart) {
             mount.scrollIntoView({ behavior: "smooth", block: "nearest" });
           }
         } catch (error) {
+          fileEl.dataset.renderState = "error";
+          const errMsg = error instanceof Error ? error.message : String(error);
+          const errDiv = document.createElement("div");
+          errDiv.className = "glimpse-error";
+          errDiv.innerHTML = "Failed to render file diff.<br><code>" +
+            errMsg.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</code>";
+          fileEl.prepend(errDiv);
           console.error("Failed to render changes file block.", error);
         }
       }
@@ -993,14 +1140,33 @@ try {
         const label = shell.querySelector(".code-label");
         const pre = shell.querySelector("pre.code-block");
         if (pre) pre.replaceWith(wrapper);
+        shell.dataset.renderState = "ready";
+      } else {
+        shell.dataset.renderState = "ready";
       }
     } catch (error) {
+      shell.dataset.renderState = "ready"; // fall back to plain pre/code
       console.error("Failed to render code block.", error);
-      // Falls back to the plain pre/code already in the DOM
     }
   }
 } catch (error) {
   console.error("Failed to load @pierre/diffs.", error);
+  const msg = error instanceof Error ? error.message : String(error);
+  const allShells = [
+    ...document.querySelectorAll("[data-diff-shell]"),
+    ...document.querySelectorAll("[data-changes-shell] .changes-file"),
+    ...document.querySelectorAll("[data-code-shell]"),
+  ];
+  for (const shell of allShells) {
+    shell.dataset.renderState = "error";
+    if (!shell.querySelector(".glimpse-error")) {
+      const errDiv = document.createElement("div");
+      errDiv.className = "glimpse-error";
+      errDiv.innerHTML = "Failed to load diff renderer. Check your network connection.<br><code>" +
+        msg.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</code>";
+      shell.prepend(errDiv);
+    }
+  }
 }
 </script>`;
 }
@@ -1094,6 +1260,63 @@ ${fontFaceCss}
 ${baseCss}
 ${markdownCss}
 ${annotationsCss}
+
+      /* Loading indicator */
+      .glimpse-loading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 20px;
+        color: var(--muted);
+        font-size: 13px;
+        font-family: inherit;
+      }
+      .glimpse-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: glimpse-spin 0.8s linear infinite;
+      }
+      @keyframes glimpse-spin {
+        to { transform: rotate(360deg); }
+      }
+      [data-render-state="ready"] > .glimpse-loading,
+      [data-render-state="error"] > .glimpse-loading,
+      [data-render-state="empty"] > .glimpse-loading {
+        display: none;
+      }
+
+      /* Error banner */
+      .glimpse-error {
+        display: none;
+        padding: 12px 16px;
+        margin: 4px 0;
+        border-radius: 6px;
+        background: var(--diff-remove-bg);
+        border: 1px solid var(--diff-remove);
+        color: var(--diff-remove);
+        font-size: 13px;
+        font-family: inherit;
+        line-height: 1.5;
+      }
+      .glimpse-error code {
+        font-size: 12px;
+        opacity: 0.85;
+        word-break: break-all;
+      }
+      [data-render-state="error"] > .glimpse-error {
+        display: block;
+      }
+
+      /* Hide mount content while loading */
+      [data-render-state="loading"] > .diff-mount,
+      [data-render-state="loading"] > .changes-mount {
+        visibility: hidden;
+        height: 0;
+        overflow: hidden;
+      }
 
       .done-button {
         position: fixed;
