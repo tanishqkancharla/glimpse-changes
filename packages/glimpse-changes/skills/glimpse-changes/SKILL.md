@@ -71,6 +71,31 @@ packages/glimpse-changes/skills/glimpse-changes/SKILL.md
 EOF
 ```
 
+Example with inline diff blocks (note: no escaping of backticks or `$`):
+
+````bash
+cat <<'EOF' | npx glimpse-changes -
+# New utility module
+
+## Summary
+- Added a helper for computing hashes
+
+## Hash helper
+
+```diff
++++ src/utils/hash.ts
++import { createHash } from "node:crypto";
++
++export function shortHash(input: string): string {
++  return createHash("sha256")
++    .update(`${process.cwd()}:${input}`)
++    .digest("hex")
++    .slice(0, 12);
++}
+```
+EOF
+````
+
 ## Usage
 
 Prefer piping markdown over stdin. This avoids shell-quoting issues.
@@ -85,6 +110,11 @@ cat <<'EOF' | npx glimpse-changes -
 Content
 EOF
 ```
+
+**Important: Do NOT escape backticks or dollar signs inside `<<'EOF'` heredocs.**
+The single-quoted delimiter already prevents all shell expansion. Escaping
+backticks (e.g. writing `\`` instead of `` ` ``) will break fence detection and
+produce garbled output instead of rendered diffs.
 
 You can still pass a single inline markdown argument for simple content:
 
