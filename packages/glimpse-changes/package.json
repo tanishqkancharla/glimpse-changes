@@ -2,25 +2,17 @@
   "name": "glimpse-changes",
   "version": "1.9.2",
   "type": "module",
-  "keywords": [
-    "pi-package"
-  ],
   "bin": {
     "glimpse-changes": "bin/glimpse-changes.js"
   },
   "files": [
     "bin",
-    "assets",
-    "skills"
+    "assets"
   ],
-  "pi": {
-    "skills": [
-      "./skills"
-    ]
-  },
   "scripts": {
     "build": "bun build scripts/render-md.ts --target=node --outfile=bin/glimpse-changes.js --external glimpseui && sed -i '' '1s|.*|#!/usr/bin/env node|' bin/glimpse-changes.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepack": "node ../../scripts/version-sync.mjs --check"
   },
   "dependencies": {
     "glimpseui": "^0.8.0"

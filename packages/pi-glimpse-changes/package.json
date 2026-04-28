@@ -1,0 +1,22 @@
+{
+  "name": "pi-glimpse-changes",
+  "version": "1.9.2",
+  "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
+  "files": [
+    "skills"
+  ],
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  },
+  "scripts": {
+    "prepack": "node ../../scripts/version-sync.mjs --check"
+  },
+  "dependencies": {
+    "glimpse-changes": "workspace:*"
+  }
+}
