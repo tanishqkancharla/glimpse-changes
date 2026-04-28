@@ -223,20 +223,6 @@ literal `+`/`-`/` ` prefixed lines:
 
 Every non-empty line must start with `+`, `-`, or a space.
 
-You can also paste full unified diff output:
-
-````
-```diff
-diff --git a/foo.txt b/foo.txt
---- a/foo.txt
-+++ b/foo.txt
-@@ -1,3 +1,3 @@
- context
--old
-+new
-```
-````
-
 ## Code blocks
 
 Fenced code blocks with a language tag get syntax highlighting via `@pierre/diffs`:
@@ -247,11 +233,4 @@ const x = 1;
 ```
 ````
 
-## Typical workflow
 
-1. Inspect changes with `git diff`, `git status`, etc.
-2. Write the change-doc using the default format: title, summary bullets, then rationale-plus-diff sections.
-3. Use `changes` blocks to reference files — don't paste raw diff content.
-4. Pipe it to `npx glimpse-changes`.
-5. Ask the user to review it and tell you when they are done.
-6. Only use `--background` and review-file polling for explicitly asynchronous workflows.
