@@ -3,7 +3,7 @@ name: glimpse-changes
 description: Create a visual explanation of the current session diff as a single HTML page and show it in a native Glimpse window. Use when the user wants a visual walkthrough of local code changes instead of a plain text diff.
 metadata:
   author: tanishqkancharla
-  version: "1.9.2"
+  version: "1.9.3"
 ---
 
 # Glimpse Changes
