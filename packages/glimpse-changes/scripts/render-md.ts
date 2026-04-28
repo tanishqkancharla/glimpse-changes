@@ -612,63 +612,67 @@ function renderMarkdown(markdown) {
 }
 
 function getLightTheme() {
+  // Based on rsms/sublime-theme "rsms bright"
+  // bg: hsl(60, 30%, 99%), fg: black, accent: hsl(224, 100%, 50%)
   return {
-    primary: "#0044ff",
-    secondary: "#750049",
-    accent: "#0044ff",
+    primary: "#0043ff",
+    secondary: "#750054",
+    accent: "#0043ff",
     text: "#000000",
     textMuted: "rgba(0,0,0,0.47)",
-    background: "#fdfdf8",
-    backgroundPanel: "#f5f5f0",
-    backgroundElement: "#ebebdf",
-    border: "#d0d0c8",
-    borderActive: "#0044ff",
-    borderSubtle: "#ddddd5",
-    diffAdded: "#0d5e2a",
+    background: "hsl(60, 30%, 99%)",
+    backgroundPanel: "hsl(60, 10%, 96%)",
+    backgroundElement: "hsl(60, 8%, 92%)",
+    border: "hsl(60, 5%, 82%)",
+    borderActive: "#0043ff",
+    borderSubtle: "hsl(60, 5%, 87%)",
+    diffAdded: "#116432",
     diffRemoved: "#cf222e",
     diffContext: "rgba(0,0,0,0.47)",
-    diffHunkHeader: "#6b5b95",
-    diffAddedBg: "#e6f5e6",
-    diffRemovedBg: "#fce8e8",
-    diffContextBg: "#f5f5f0",
-    diffLineNumber: "#cccccc",
-    markdownHeading: "#002b8f",
-    markdownLink: "#0044ff",
-    markdownCode: "#002b8f",
-    markdownBlockQuote: "#0d5e2a",
-    markdownHorizontalRule: "#d0d0c8",
-    selectionBg: "rgba(0, 68, 255, 0.18)",
+    diffHunkHeader: "#0043a8",
+    diffAddedBg: "hsl(144, 40%, 93%)",
+    diffRemovedBg: "hsl(5, 50%, 95%)",
+    diffContextBg: "hsl(60, 10%, 96%)",
+    diffLineNumber: "rgba(0,0,0,0.25)",
+    markdownHeading: "#000000",
+    markdownLink: "#0043ff",
+    markdownCode: "#0043a8",
+    markdownBlockQuote: "#116432",
+    markdownHorizontalRule: "hsl(60, 5%, 82%)",
+    selectionBg: "hsla(204, 100%, 83%, 0.5)",
     selectionText: "inherit",
   };
 }
 
 function getDarkTheme() {
+  // Based on rsms/sublime-theme "rsms dark"
+  // bg: hsl(0, 0%, 7%), fg: rgba(255,255,255,0.8), accent: hsl(320, 90%, 70%)
   return {
-    primary: "#e86cb5",
-    secondary: "#ffd9b3",
-    accent: "#e86cb5",
+    primary: "hsl(320, 90%, 70%)",
+    secondary: "hsl(27, 100%, 87%)",
+    accent: "hsl(320, 90%, 70%)",
     text: "rgba(255,255,255,0.8)",
     textMuted: "rgba(255,255,255,0.35)",
-    background: "#121212",
-    backgroundPanel: "#1a1a1a",
-    backgroundElement: "#242424",
-    border: "#333333",
-    borderActive: "#e86cb5",
-    borderSubtle: "#2a2a2a",
-    diffAdded: "#a3e8b0",
-    diffRemoved: "#c76e6e",
+    background: "hsl(0, 0%, 7%)",
+    backgroundPanel: "hsl(0, 0%, 10%)",
+    backgroundElement: "hsl(0, 0%, 14%)",
+    border: "hsl(0, 0%, 20%)",
+    borderActive: "hsl(320, 90%, 70%)",
+    borderSubtle: "hsl(0, 0%, 16%)",
+    diffAdded: "hsl(150, 100%, 43%)",
+    diffRemoved: "hsl(5, 100%, 50%)",
     diffContext: "rgba(255,255,255,0.35)",
-    diffHunkHeader: "#8099b3",
-    diffAddedBg: "rgba(166,227,161,0.1)",
-    diffRemovedBg: "rgba(199,110,110,0.1)",
-    diffContextBg: "#1a1a1a",
+    diffHunkHeader: "hsl(180, 100%, 50%)",
+    diffAddedBg: "hsla(150, 100%, 43%, 0.1)",
+    diffRemovedBg: "hsla(5, 100%, 50%, 0.1)",
+    diffContextBg: "hsl(0, 0%, 10%)",
     diffLineNumber: "rgba(255,255,255,0.3)",
     markdownHeading: "#ffffff",
-    markdownLink: "#e86cb5",
-    markdownCode: "#ffd9b3",
-    markdownBlockQuote: "#8fb38f",
-    markdownHorizontalRule: "#333333",
-    selectionBg: "rgba(232, 108, 181, 0.22)",
+    markdownLink: "hsl(320, 90%, 70%)",
+    markdownCode: "hsl(27, 100%, 87%)",
+    markdownBlockQuote: "hsl(150, 40%, 70%)",
+    markdownHorizontalRule: "hsl(0, 0%, 20%)",
+    selectionBg: "hsla(204, 100%, 70%, 0.3)",
     selectionText: "inherit",
   };
 }
@@ -775,6 +779,82 @@ const changesUnsafeCss = \`
 }
 \`;
 
+// rsms/sublime-theme color schemes for @pierre/diffs syntax highlighting
+const rsmsDarkTheme = {
+  name: "rsms-dark",
+  type: "dark",
+  colors: {
+    "editor.background": "hsl(0, 0%, 7%)",
+    "editor.foreground": "rgba(255,255,255,0.8)",
+    "editor.lineHighlightBackground": "rgba(255,255,255,0.06)",
+    "editorLineNumber.foreground": "rgba(255,255,255,0.3)",
+    "gitDecoration.addedResourceForeground": "hsl(150, 100%, 43%)",
+    "gitDecoration.deletedResourceForeground": "hsl(5, 100%, 50%)",
+    "gitDecoration.modifiedResourceForeground": "hsl(210, 100%, 50%)",
+    "terminal.ansiGreen": "hsl(150, 100%, 43%)",
+    "terminal.ansiRed": "hsl(5, 100%, 50%)",
+    "terminal.ansiBlue": "hsl(210, 100%, 50%)",
+  },
+  tokenColors: [
+    { scope: ["comment", "punctuation.definition.comment"], settings: { foreground: "rgba(255,255,255,0.35)" } },
+    { scope: ["punctuation", "meta.brace", "meta.delimiter"], settings: { foreground: "rgba(255,255,255,0.4)" } },
+    { scope: ["keyword", "storage.type", "storage.modifier"], settings: { foreground: "#93b2d1" } },
+    { scope: ["keyword.operator"], settings: { foreground: "#e8c4a0" } },
+    { scope: ["string", "string.quoted"], settings: { foreground: "#93d1b2" } },
+    { scope: ["constant.numeric"], settings: { foreground: "#93d1b2" } },
+    { scope: ["constant.language"], settings: { foreground: "#93b2d1" } },
+    { scope: ["entity.name.type", "support.type", "storage.type.interface", "storage.type.type"], settings: { foreground: "#ffdabc" } },
+    { scope: ["entity.name.function", "entity.name.class", "entity.name.type.class", "support.function"], settings: { foreground: "#ffffff", fontStyle: "bold" } },
+    { scope: ["variable", "variable.other", "meta.object-literal.key"], settings: { foreground: "rgba(255,255,255,0.8)" } },
+    { scope: ["variable.parameter"], settings: { foreground: "rgba(255,255,255,0.8)" } },
+    { scope: ["support.class", "entity.other.inherited-class"], settings: { foreground: "#ffdabc" } },
+    { scope: ["meta.import", "meta.export", "keyword.control.import", "keyword.control.export", "keyword.control.from"], settings: { foreground: "#93b2d1" } },
+    { scope: ["entity.name.tag"], settings: { foreground: "#93b2d1" } },
+    { scope: ["entity.other.attribute-name"], settings: { foreground: "#ffdabc" } },
+    { scope: ["markup.deleted"], settings: { foreground: "hsl(5, 100%, 50%)" } },
+    { scope: ["markup.inserted"], settings: { foreground: "hsl(150, 100%, 43%)" } },
+  ],
+};
+
+const rsmsLightTheme = {
+  name: "rsms-light",
+  type: "light",
+  colors: {
+    "editor.background": "hsl(60, 30%, 99%)",
+    "editor.foreground": "#000000",
+    "editor.lineHighlightBackground": "hsla(60, 100%, 50%, 0.12)",
+    "editorLineNumber.foreground": "rgba(0,0,0,0.25)",
+    "gitDecoration.addedResourceForeground": "#116432",
+    "gitDecoration.deletedResourceForeground": "#cf222e",
+    "gitDecoration.modifiedResourceForeground": "#0043a8",
+    "terminal.ansiGreen": "#116432",
+    "terminal.ansiRed": "#cf222e",
+    "terminal.ansiBlue": "#0043a8",
+  },
+  tokenColors: [
+    { scope: ["comment", "punctuation.definition.comment"], settings: { foreground: "rgba(0,0,0,0.47)", fontStyle: "italic" } },
+    { scope: ["punctuation", "meta.brace", "meta.delimiter"], settings: { foreground: "rgba(0,0,0,0.5)" } },
+    { scope: ["keyword", "storage.type", "storage.modifier"], settings: { foreground: "rgba(0,0,0,0.6)" } },
+    { scope: ["keyword.control"], settings: { foreground: "hsla(240, 100%, 23%, 0.67)" } },
+    { scope: ["keyword.operator"], settings: { foreground: "rgba(0,0,0,0.6)" } },
+    { scope: ["string", "string.quoted"], settings: { foreground: "#116432" } },
+    { scope: ["constant.numeric"], settings: { foreground: "#750054" } },
+    { scope: ["constant.language"], settings: { foreground: "rgba(0,0,0,0.6)" } },
+    { scope: ["entity.name.type", "support.type", "storage.type.interface", "storage.type.type"], settings: { foreground: "#0043a8" } },
+    { scope: ["entity.name.function", "entity.name.class", "entity.name.type.class", "support.function"], settings: { foreground: "#000000", fontStyle: "bold" } },
+    { scope: ["variable", "variable.other", "meta.object-literal.key"], settings: { foreground: "#000000" } },
+    { scope: ["variable.parameter"], settings: { foreground: "#000000" } },
+    { scope: ["support.class", "entity.other.inherited-class"], settings: { foreground: "#0043a8" } },
+    { scope: ["meta.import", "meta.export", "keyword.control.import", "keyword.control.export", "keyword.control.from"], settings: { foreground: "rgba(0,0,0,0.6)" } },
+    { scope: ["entity.name.tag"], settings: { foreground: "rgba(0,0,0,0.6)" } },
+    { scope: ["entity.other.attribute-name"], settings: { foreground: "#0043a8" } },
+    { scope: ["markup.deleted"], settings: { foreground: "#cf222e" } },
+    { scope: ["markup.inserted"], settings: { foreground: "#116432" } },
+  ],
+};
+
+const rsmsThemeOption = { dark: "rsms-dark", light: "rsms-light" };
+
 function decodeBase64Utf8(value) {
   const binary = atob(value);
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
@@ -798,6 +878,7 @@ function createViewOptions(state) {
     disableLineNumbers: !state.showLineNumbers,
     disableBackground: !state.showBackground,
     disableFileHeader: !state.showFileHeader,
+    theme: rsmsThemeOption,
     themeType: window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
     unsafeCSS: diffUnsafeCss,
   };
@@ -944,8 +1025,20 @@ try {
     import(moduleUrl),
     import(ssrModuleUrl),
   ]);
-  const { parsePatchFiles } = mod;
-  const { preloadPatchFile, renderHTML } = ssrMod;
+  const { parsePatchFiles, registerCustomTheme } = mod;
+  const { preloadPatchFile, renderHTML, registerCustomTheme: registerCustomThemeSSR } = ssrMod;
+
+  // Register rsms themes with both main and SSR modules
+  // registerCustomTheme expects a loader that returns a Promise
+  if (registerCustomTheme) {
+    registerCustomTheme("rsms-dark", () => Promise.resolve(rsmsDarkTheme));
+    registerCustomTheme("rsms-light", () => Promise.resolve(rsmsLightTheme));
+  }
+  if (registerCustomThemeSSR) {
+    registerCustomThemeSSR("rsms-dark", () => Promise.resolve(rsmsDarkTheme));
+    registerCustomThemeSSR("rsms-light", () => Promise.resolve(rsmsLightTheme));
+  }
+
   const state = { ...defaults };
 
   applyLayoutState(state);
@@ -1001,7 +1094,7 @@ try {
     // Preload highlighter with required themes and languages
     try {
       await preloadHighlighter({
-        themes: ["pierre-dark", "pierre-light"],
+        themes: ["rsms-dark", "rsms-light"],
         langs: [...langSet],
       });
     } catch (e) {
@@ -1118,6 +1211,7 @@ try {
           overflow: "wrap",
           disableLineNumbers: false,
           disableFileHeader: true,
+          theme: rsmsThemeOption,
           themeType: window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
           unsafeCSS: diffUnsafeCss,
         },
