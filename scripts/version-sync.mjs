@@ -33,6 +33,7 @@ const packageJsonTargets = [
 // Targets: SKILL.md frontmatter
 const skillTargets = [
   "packages/pi-glimpse-changes/skills/glimpse-changes/SKILL.md",
+  "skills/glimpse-changes/SKILL.md",
 ];
 
 let mismatches = 0;

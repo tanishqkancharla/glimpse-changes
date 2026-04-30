@@ -15,8 +15,5 @@
   },
   "scripts": {
     "prepack": "node ../../scripts/version-sync.mjs --check"
-  },
-  "dependencies": {
-    "glimpse-changes": "workspace:*"
   }
 }

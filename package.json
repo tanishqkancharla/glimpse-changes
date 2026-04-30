@@ -5,6 +5,8 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "build:skill": "node scripts/build-skill.mjs",
+    "test:skill": "node scripts/test-skill.mjs",
     "version:sync": "node scripts/version-sync.mjs",
     "version:check": "node scripts/version-sync.mjs --check"
   },
